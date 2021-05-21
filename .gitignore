@@ -1,0 +1,20 @@
+# Data
+/data/*
+!/data/metadata.json
+!/data/README.md
+
+# Editors
+.vscode
+
+# Python
+__pycache__
+.ipynb_checkpoints
+.mypy_cache
+.pytest_cache
+
+# Misc
+.github
+.DS_Store
+/notebooks
+/legacy
+/artifacts
