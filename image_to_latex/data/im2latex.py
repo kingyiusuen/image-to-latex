@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Tuple
 
 import torch
 from PIL import Image
@@ -40,16 +40,11 @@ class Im2Latex(BaseDataModule):
         test_dataset:
     """
 
-    def __init__(
-        self,
-        batch_size: int = 32,
-        num_workers: int = 0,
-        config: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__(batch_size, num_workers, config)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.tokenizer = Tokenizer()
-        self.image_height = config.get("image-height", IMAGE_HEIGHT)
-        self.image_width = config.get("image-width", IMAGE_WIDTH)
+        self.image_height = self.args.get("image-height", IMAGE_HEIGHT)
+        self.image_width = self.args.get("image-width", IMAGE_WIDTH)
 
     def config(self) -> Dict[str, Any]:
         """Returns important configuration for reproducibility."""

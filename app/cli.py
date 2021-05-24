@@ -27,12 +27,12 @@ def _parse_args(ctx: typer.Context) -> Dict[str, Any]:
             "A name and a value must be provided for every additional "
             "argument."
         )
-    config: Dict[str, Any] = {}
+    args: Dict[str, Any] = {}
     for i in range(0, len(unknown_args), 2):
         name = unknown_args[i].split("--")[1]
         value = unknown_args[i + 1]
-        config[name] = literal_eval(value)
-    return config
+        args[name] = literal_eval(value)
+    return args
 
 
 @app.command(
@@ -64,7 +64,7 @@ def train(
     ),
     lr: float = typer.Option(0.001, help="Learning rate."),
     max_lr: float = typer.Option(
-        0.01,
+        -1,
         help=(
             "Maximum learning rate to use in one-cycle learning rate "
             "scheduler. Use -1 to to run learning rate range test. Ignored if "
@@ -107,14 +107,14 @@ def train(
     assert model_name in ["ResnetTransformer", "CRNN"]
     assert dataset_name in ["Im2Latex", "FakeData"]
 
-    config = _parse_args(ctx)
+    args = _parse_args(ctx)
 
     if model_name == "CRNN":
-        assert ("image-height" in config) and ("image-width" in config)
+        assert ("image-height" in args) and ("image-width" in args)
 
     # Set up dataloaders
     data_class = import_class(f"image_to_latex.data.{dataset_name}")
-    data_module = data_class(batch_size, num_workers, config)
+    data_module = data_class(batch_size, num_workers, args)
     data_module.prepare_data()
     data_module.create_datasets()
     train_dataloader = data_module.get_dataloader("train")
@@ -123,13 +123,13 @@ def train(
 
     # Set up the model
     model_class = import_class(f"image_to_latex.models.{model_name}")
-    model = model_class(data_module.tokenizer, config)
+    model = model_class(data_module.tokenizer, args)
     print("\nModel summary:")
     summary(model)
 
     # Set up Weights & Biases logger
     if use_wandb:
-        wandb_run = wandb.init(project="image-to-latex", config=config)
+        wandb_run = wandb.init(project="image-to-latex")
     else:
         wandb_run = None
 

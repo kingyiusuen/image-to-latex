@@ -10,7 +10,6 @@ from image_to_latex.models import (
     PositionalEncoding1D,
     PositionalEncoding2D,
 )
-from image_to_latex.utils.data import Tokenizer
 
 
 RESNET_LAYERS = 2
@@ -57,17 +56,17 @@ class ResnetTransformer(BaseModel):
         fc: Fully connected layer. The output size must be num_classes.
     """
 
-    def __init__(self, tokenizer: Tokenizer, config: Dict[str, Any]) -> None:
-        super().__init__(tokenizer, config)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
-        self.resnet_layers = config.get("resnet-layers", RESNET_LAYERS)
+        self.resnet_layers = self.args.get("resnet-layers", RESNET_LAYERS)
         assert 0 <= self.resnet_layers <= 4
-        self.tf_dim = config.get("tf-dim", TF_DIM)
-        self.tf_fc_dim = config.get("tf-fc-dim", TF_FC_DIM)
-        self.tf_nhead = config.get("tf-nhead", TF_NHEAD)
-        self.tf_dropout = config.get("tf-dropout", TF_DROPOUT)
-        self.tf_layers = config.get("tf-layers", TF_LAYERS)
-        self.max_output_len = config.get("max-output-len", MAX_OUTPUT_LEN)
+        self.tf_dim = self.args.get("tf-dim", TF_DIM)
+        self.tf_fc_dim = self.args.get("tf-fc-dim", TF_FC_DIM)
+        self.tf_nhead = self.args.get("tf-nhead", TF_NHEAD)
+        self.tf_dropout = self.args.get("tf-dropout", TF_DROPOUT)
+        self.tf_layers = self.args.get("tf-layers", TF_LAYERS)
+        self.max_output_len = self.args.get("max-output-len", MAX_OUTPUT_LEN)
 
         # Encoder
         resnet = torchvision.models.resnet18(pretrained=False)

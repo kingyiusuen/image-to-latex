@@ -24,12 +24,12 @@ class BaseDataModule(ABC):
         self,
         batch_size: int = 32,
         num_workers: int = 0,
-        config: Optional[Dict[str, Any]] = None,
+        args: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
-        config = config if config else {}
+        self.args = args if args else {}
 
         self.transform = transforms.ToTensor()
 

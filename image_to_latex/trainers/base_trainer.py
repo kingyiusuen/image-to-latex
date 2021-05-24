@@ -50,7 +50,7 @@ class BaseTrainer:
         max_epochs: int = 100,
         patience: int = 10,
         lr: float = 0.001,
-        max_lr: float = 0.01,
+        max_lr: float = -1,
         use_scheduler: bool = True,
         save_best_model: bool = True,
         wandb_run: Optional[wandb.sdk.wandb_run.Run] = None,
@@ -200,7 +200,7 @@ class BaseTrainer:
     def _configure_optimizer(self, train_dataloader: DataLoader) -> None:
         """Configure optimizier and scheduler."""
         # Configure optimizer
-        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-6)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
 
         if not self.use_scheduler:
             return

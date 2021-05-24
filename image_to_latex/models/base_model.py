@@ -13,10 +13,11 @@ class BaseModel(nn.Module, ABC):
     def __init__(
         self,
         tokenizer: Tokenizer,
-        config: Dict[str, Any],
+        args: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
         self.tokenizer = tokenizer
+        self.args = args if args else {}
 
         self.blk_index = self.tokenizer.blk_index
         self.sos_index = self.tokenizer.sos_index

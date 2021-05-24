@@ -6,7 +6,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from image_to_latex.models import BaseModel
-from image_to_latex.utils.data import Tokenizer
 from image_to_latex.utils.misc import import_class
 
 
@@ -44,15 +43,15 @@ class CRNN(BaseModel):
     intelligence, 39(11), 2298-2304. https://arxiv.org/abs/1507.05717.
     """
 
-    def __init__(self, tokenizer: Tokenizer, config: Dict[str, Any]) -> None:
-        super().__init__(tokenizer, config)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
-        self.conv_dim = config.get("conv-dim", CONV_DIM)
-        self.rnn_type = config.get("rnn-type", RNN_TYPE).upper()
+        self.conv_dim = self.args.get("conv-dim", CONV_DIM)
+        self.rnn_type = self.args.get("rnn-type", RNN_TYPE).upper()
         assert self.rnn_type in ["RNN", "LSTM", "GRU"]
-        self.rnn_dim = config.get("rnn-dim", RNN_DIM)
-        self.rnn_layers = config.get("rnn-layers", RNN_LAYERS)
-        self.rnn_dropout = config.get("rnn-dropout", RNN_DROPOUT)
+        self.rnn_dim = self.args.get("rnn-dim", RNN_DIM)
+        self.rnn_layers = self.args.get("rnn-layers", RNN_LAYERS)
+        self.rnn_dropout = self.args.get("rnn-dropout", RNN_DROPOUT)
 
         self.cnn = nn.Sequential(
             ConvReLU(1, self.conv_dim, 3, padding=1),
