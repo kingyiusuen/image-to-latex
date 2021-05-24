@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 from image_to_latex.data.fake_data import FakeData
@@ -7,7 +6,6 @@ from image_to_latex.data.fake_data import FakeData
 class TestFakeData:
     @pytest.fixture
     def fake_data(self):
-        np.random.seed(32)
         config = {
             "num-samples": 20,
             "image-height": 16,
