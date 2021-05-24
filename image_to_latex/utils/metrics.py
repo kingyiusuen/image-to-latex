@@ -31,7 +31,7 @@ def edit_distance(references, hypotheses) -> float:
     Returns:
         1 - levenshtein distance: higher is better, 1 is perfect.
     """
-    d_leven, len_tot = 0., 0.
+    d_leven, len_tot = 0.0, 0.0
     for ref, hypo in zip(references, hypotheses):
         d_leven += editdistance.distance(ref, hypo)
         len_tot += float(max(len(ref), len(hypo)))

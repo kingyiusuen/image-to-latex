@@ -2,7 +2,7 @@
 
 ## Quick Start
 
-Clone repository
+Clone the repository to your computer and position your command line inside the repository folder:
 
 ```sh
 git clone https://github.com/kingyiusuen/image-to-latex.git
@@ -20,6 +20,8 @@ conda activate image-to-latex
 
 ## Experiment Tracking
 
+Store training and validation losses
+
 ## Model Versioning
 
 ## CI/CD Pipeline
@@ -28,6 +30,7 @@ conda activate image-to-latex
 
 ## Acknowledgement
 
-- [im2markup](https://github.com/harvardnlp/im2markup)
-- [im2latex](https://github.com/luopeixiang/im2latex)
-- [Full Stack Deep Learning Spring 2021 Labs](https://github.com/full-stack-deep-learning/fsdl-text-recognizer-2021-labs)
+This project is inspired by the labs in [Full Stack Deep Learning](https://fullstackdeeplearning.com/). Although some of the modeling to make sure I am learning from it. For example,
+- I wrote my own training loop instead of using Pytorch Lightning,
+- I used Typer instead of argparser for CLI, and
+- I used FastAPI intead of Flask for deployment.

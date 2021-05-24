@@ -21,7 +21,9 @@ class LRFinder_(LRFinder):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def _train_batch(self, train_iter, accumulation_steps, non_blocking_transfer=True):
+    def _train_batch(
+        self, train_iter, accumulation_steps, non_blocking_transfer=True
+    ):
         self.model.train()
         total_loss = None  # for late initialization
         self.optimizer.zero_grad()
@@ -37,11 +39,19 @@ class LRFinder_(LRFinder):
             else:
                 logprobs = self.model(imgs)  # (B, num_classes, S)
                 B, _, S = logprobs.shape
-                logprobs_for_loss = logprobs.permute(2, 0, 1)  # (S, B, num_classes)
-                input_lengths = torch.ones(B).type_as(logprobs_for_loss).int() * S
-                target_lengths = find_first(targets, element=self.model.padding_index)
+                logprobs_for_loss = logprobs.permute(
+                    2, 0, 1
+                )  # (S, B, num_classes)
+                input_lengths = (
+                    torch.ones(B).type_as(logprobs_for_loss).int() * S
+                )
+                target_lengths = find_first(
+                    targets, element=self.model.pad_index
+                )
                 target_lengths = target_lengths.type_as(targets)
-                loss = self.criterion(logprobs_for_loss, targets, input_lengths, target_lengths)
+                loss = self.criterion(
+                    logprobs_for_loss, targets, input_lengths, target_lengths
+                )
 
             # Loss should be averaged in each step
             loss /= accumulation_steps
@@ -54,7 +64,9 @@ class LRFinder_(LRFinder):
         self.optimizer.step()
         return total_loss.item()
 
-    def suggest_lr(self, skip_start: int = 10, skip_end: int = 5) -> Union[float, None]:
+    def suggest_lr(
+        self, skip_start: int = 10, skip_end: int = 5
+    ) -> Union[float, None]:
         """Plots the learning rate range test.
 
         Args:
@@ -88,8 +100,11 @@ class LRFinder_(LRFinder):
         try:
             min_grad_idx = (np.gradient(np.array(losses))).argmin()
         except ValueError:
-            print("Failed to compute the gradients, there might not be enough points.")
+            print(
+                "Failed to compute the gradients, there might not be enough "
+                "points."
+            )
         if min_grad_idx is not None:
-            print("Suggested LR: {:.2E}".format(lrs[min_grad_idx]))
+            print(f"Suggested LR: {lrs[min_grad_idx]:.2E}")
             return lrs[min_grad_idx]
         return None

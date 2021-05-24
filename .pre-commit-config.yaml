@@ -14,7 +14,7 @@ repos:
     -   id: black
         args: []
         files: .
--   repo: https://gitlab.com/PyCQA/flake8
+-   repo: https://github.com/PyCQA/flake8
     rev: 3.9.1
     hooks:
     -   id: flake8
@@ -28,7 +28,7 @@ repos:
     rev: v0.812
     hooks:
     -   id: mypy
-        args: [--ignore-missing-imports, --no-strict-optional]
+        args: []
         files: .
 -   repo: https://github.com/asottile/pyupgrade
     rev: v2.18.1
@@ -37,16 +37,13 @@ repos:
         args: [--py36-plus]
 -   repo: local
     hooks:
-    -   id: test-non-training
-        name: test-non-training
-        entry: make
-        args: ["test-non-training"]
-        language: system
-        types: [python]
-        pass_filenames: false
     -   id: clean
         name: clean
         entry: make
         args: ["clean"]
         language: system
         pass_filenames: false
+
+ci:
+    autofix_commit_msg: "[pre-commit.ci] auto fixes from pre-commit.com hooks"
+    autoupdate_commit_msg: "[pre-commit.ci] pre-commit-config update"

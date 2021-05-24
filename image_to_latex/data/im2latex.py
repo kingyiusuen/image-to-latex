@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Tuple
 
 import torch
 from PIL import Image
@@ -10,12 +10,12 @@ from torch.utils.data import DataLoader, Dataset
 from image_to_latex.data.base_data_module import BaseDataModule
 from image_to_latex.data.base_dataset import BaseDataset
 from image_to_latex.data.same_size_batch_sampler import SameSizeBatchSampler
-from image_to_latex.utils.data import convert_strings_to_labels
+from image_to_latex.utils.data import Tokenizer, resize_image
 from image_to_latex.utils.misc import (
     download_url,
     extract_tar_file,
     find_max_length,
-    verify_sha256
+    verify_sha256,
 )
 
 
@@ -23,27 +23,50 @@ DATA_DIRNAME = BaseDataModule.data_dirname()
 FORMULA_FILENAME = DATA_DIRNAME / "im2latex_formulas.norm.lst"
 VOCAB_FILENAME = DATA_DIRNAME / "vocab.json"
 
+IMAGE_HEIGHT = None
+IMAGE_WIDTH = None
+
 
 class Im2Latex(BaseDataModule):
     """Data processing for the Im2Latex-100K dataset.
 
     Attributes:
-        token2id: A dictionary that maps tokens to indices. Can be created by
-            calling `build_vocab`.
+        batch_size:
+        num_workers:
+        tokenizer: A tokenizer object.
+        image_height: Height of resized image.
+        image_width: Width of resized image.
+        train_dataset:
+        val_dataset:
+        test_dataset:
     """
 
-    def __init__(self, config: Dict[str, Any] = None) -> None:
+    def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
-        self.token2id: Dict[str, int]
+        self.tokenizer = Tokenizer()
+        self.image_height = config.get("image_height", IMAGE_HEIGHT)
+        self.image_width = config.get("image_width", IMAGE_WIDTH)
+
+    def config(self) -> Dict[str, Any]:
+        """Returns important configuration for reproducibility."""
+        return {
+            "batch-size": self.batch_size,
+            "num-workers": self.num_workers,
+            "image-height": self.image_height,
+            "image-width": self.image_width,
+        }
 
     def prepare_data(self) -> None:
         """Download the dataset and save to disk."""
         DATA_DIRNAME.mkdir(parents=True, exist_ok=True)
         cur_dir = os.getcwd()
         os.chdir(DATA_DIRNAME)
-        with open(DATA_DIRNAME / "metadata.json", "r") as f:
+        with open(DATA_DIRNAME / "metadata.json") as f:
             metadata = json.load(f)
-        for filename, url, sha256 in metadata:
+        for entry in metadata:
+            filename = entry["filename"]
+            url = entry["url"]
+            sha256 = entry["sha256"]
             # No need to download the file if it already exists in the data
             # directory
             if Path(filename).is_file():
@@ -54,121 +77,100 @@ class Im2Latex(BaseDataModule):
                 extract_tar_file(filename)
         os.chdir(cur_dir)
 
-    def setup(self, stage: str = None) -> None:
-        """Load images and formulas, and assign them to a `torch Dataset`."""
+    def create_datasets(self) -> None:
+        """Load images and formulas, and assign them to a `torch Dataset`.
 
-        def _get_dataset(
-            img_names: Sequence[str], formulas: Sequence[Sequence[str]], seq_length: int
+        `self.train_dataset`, `self.val_dataset` and `self.test_dataset` will
+        be assigned after this method is called.
+        """
+
+        def _create_dataset(
+            img_names: Iterable[str],
+            formulas: Iterable[Iterable[str]],
+            max_seq_len: int,
         ) -> Dataset:
-            images = [
-                Image.open(_img_filename(img_name)).convert("L")
-                for img_name in img_names
-            ]
-            targets = convert_strings_to_labels(formulas, self.token2id, seq_length)
-            return BaseDataset(images, targets, self.transform)
-
-        if not hasattr(self, "token2id"):
-            raise RuntimeError(
-                "Should call `build_vocab` first to create a token-to-index "
-                "mapping, so that target labels of the dataset(s) can be "
-                "generated accordingly."
+            images = []
+            for img_name in img_names:
+                image = Image.open(_img_filename(img_name)).convert("L")
+                if self.image_height and self.image_width:
+                    image = resize_image(
+                        image, self.image_width, self.image_height
+                    )
+                images.append(image)
+            targets = self.tokenizer.index(
+                formulas, add_sos=True, add_eos=True, pad_to=max_seq_len
+            )
+            return BaseDataset(
+                images, torch.IntTensor(targets), self.transform
             )
 
-        print("Loading dataset(s)...")
+        print("Loading datasets...")
 
-        if stage == "fit" or stage is None:
-            formulas = get_formulas()
-            train_img_names, train_formula_indices = load_split_file("train")
-            val_img_names, val_formula_indices = load_split_file("val")
-            train_formulas = filter_formulas(formulas, train_formula_indices)
-            val_formulas = filter_formulas(formulas, val_formula_indices)
-            seq_length = max(find_max_length(train_formulas), find_max_length(val_formulas))
-            seq_length += 2  # Add two for start token and end token
-            self.train_dataset = _get_dataset(
-                train_img_names, train_formulas, seq_length
-            )
-            self.val_dataset = _get_dataset(val_img_names, val_formulas, seq_length)
+        formulas = get_formulas()
 
-        if stage == "test" or stage is None:
-            formulas = get_formulas()
-            test_img_names, test_formula_indices = load_split_file("test")
-            test_formulas = filter_formulas(formulas, test_formula_indices)
-            seq_length = find_max_length(test_formulas) + 2
-            # Filter out formulas that have zero length
-            test_img_names_ = []
-            test_formulas_ = []
-            for img_name, formula in zip(test_img_names, test_formulas):
-                if len(formula) > 0:
-                    test_img_names_.append(img_name)
-                    test_formulas_.append(formula)
-            self.test_dataset = _get_dataset(
-                test_img_names_, test_formulas_, seq_length
-            )
+        train_img_names, train_formula_indices = load_split_file("train")
+        val_img_names, val_formula_indices = load_split_file("val")
+        test_img_names, test_formula_indices = load_split_file("test")
+
+        train_formulas = filter_formulas(formulas, train_formula_indices)
+        val_formulas = filter_formulas(formulas, val_formula_indices)
+        test_formulas = filter_formulas(formulas, test_formula_indices)
+
+        # For train and validation datasets
+        max_seq_len = max(
+            find_max_length(train_formulas), find_max_length(val_formulas)
+        )
+        max_seq_len += 2  # Add two for start token and end token
+        self.tokenizer.build(train_formulas)
+        self.train_dataset = _create_dataset(
+            train_img_names, train_formulas, max_seq_len
+        )
+        self.val_dataset = _create_dataset(
+            val_img_names, val_formulas, max_seq_len
+        )
+
+        # For test dataset
+        max_seq_len = find_max_length(test_formulas)
+        max_seq_len += 2  # Add two for start token and end token
+        # Filter out formulas that have zero length
+        test_img_names_ = []
+        test_formulas_ = []
+        for img_name, formula in zip(test_img_names, test_formulas):
+            if len(formula) > 0:
+                test_img_names_.append(img_name)
+                test_formulas_.append(formula)
+        self.test_dataset = _create_dataset(
+            test_img_names_, test_formulas_, max_seq_len
+        )
 
     def get_dataloader(self, split: str) -> DataLoader:
         """Returns a `torch Dataloader` object."""
         assert split in ["train", "val", "test"]
         print(f"Preparing {split}_dataloader...")
         dataset = getattr(self, f"{split}_dataset")
-        batch_sampler = SameSizeBatchSampler(
-            dataset, batch_size=self.batch_size, shuffle=(split == "train")
-        )
-        dataloader = DataLoader(
-            dataset,
-            batch_sampler=batch_sampler,
-            num_workers=self.num_workers,
-            pin_memory=torch.cuda.is_available(),
-        )
+        if self.image_height and self.image_width:
+            dataloader = DataLoader(
+                dataset,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                pin_memory=torch.cuda.is_available(),
+            )
+        else:
+            batch_sampler = SameSizeBatchSampler(
+                dataset, batch_size=self.batch_size, shuffle=(split == "train")
+            )
+            dataloader = DataLoader(
+                dataset,
+                batch_sampler=batch_sampler,
+                num_workers=self.num_workers,
+                pin_memory=torch.cuda.is_available(),
+            )
         return dataloader
-
-    def build_vocab(self, min_count: int = 2) -> None:
-        """Create a mapping from tokens to indices.
-
-        Args:
-            min_count: Tokens that appear fewer than `min_count` will not be
-                included in the mapping.
-        """
-        if VOCAB_FILENAME.is_file():
-            with open(VOCAB_FILENAME, "r") as f:
-                self.token2id = json.load(f)
-            return
-
-        # Get the tokens from the formulas in the training dataset
-        self.prepare_data()
-        formulas = get_formulas()
-        _, train_formula_indices = load_split_file("train")
-        train_formulas = filter_formulas(formulas, train_formula_indices)
-
-        # Count the frequency of each token
-        counter: Dict[str, int] = {}
-        for formula in train_formulas:
-            for token in formula:
-                counter[token] = counter.get(token, 0) + 1
-
-        # Remove tokens that show up fewer than `min_count` times
-        train_tokens = []
-        for token, count in counter.items():
-            if count >= min_count:
-                train_tokens.append(token)
-
-        # Create a mapping from tokens to indices
-        # <NIL> blank token (for CTC) at index 0
-        # <BOS> begin-of-sequence token at index 1
-        # <EOS> end-of-sequence token at index 2
-        # <PAD> padding token at index 3
-        # <UNK> unkown token at index 4
-        special_tokens = ["<NIL>", "<BOS>", "<EOS>", "<PAD>", "<UNK>"]
-        self.id2token = special_tokens + train_tokens
-        self.token2id = {token: i for i, token in enumerate(self.id2token)}
-
-        # Save the mapping
-        with open(VOCAB_FILENAME, "w") as f:
-            json.dump(self.token2id, f)
 
 
 def get_formulas() -> List[List[str]]:
     """Returns all the formulas in the formula file."""
-    with open(FORMULA_FILENAME, "r") as f:
+    with open(FORMULA_FILENAME) as f:
         formulas = [formula.strip("\n").split() for formula in f.readlines()]
     return formulas
 
@@ -177,7 +179,7 @@ def load_split_file(split: str) -> Tuple[List[str], List[int]]:
     """Load image names and formula indices from a split file."""
     img_names = []
     formula_indices = []
-    with open(_split_filename(split), "r") as f:
+    with open(_split_filename(split)) as f:
         for line in f:
             img_name, formula_idx = line.strip("\n").split()
             img_names.append(img_name)

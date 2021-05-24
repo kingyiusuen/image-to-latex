@@ -53,7 +53,8 @@ class SameSizeBatchSampler(Sampler):
                 if len(batch) == self.batch_size:
                     yield batch
                     batch = []
-            # Yield half-full batch before moving to next bucket (if drop_last is True)
+            # Yield half-full batch before moving to next bucket
+            # (if drop_last is True)
             if len(batch) > 0:
                 if not self.drop_last:
                     yield batch

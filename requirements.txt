@@ -1,0 +1,9 @@
+torch==1.8.1
+torchvision==0.9.1
+torch-lr-finder==0.2.1
+torchinfo==0.1.1
+tqdm==4.60.0
+typer==0.3.2
+wandb==0.10.30
+nltk==3.6.2
+editdistance==0.5.3

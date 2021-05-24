@@ -9,16 +9,16 @@ class TestFakeData:
     def fake_data(self):
         np.random.seed(32)
         config = {
-            "num_samples": 20,
-            "image_height": 16,
-            "image_width": 16,
-            "num_classes": 4,
-            "seq_length": 8,
+            "num-samples": 20,
+            "image-height": 16,
+            "image-width": 16,
+            "num-classes": 4,
+            "max-seq-len": 8,
         }
         return FakeData(config)
 
-    def test_setup(self, fake_data):
-        fake_data.setup()
+    def test_create_datasets(self, fake_data):
+        fake_data.create_datasets()
         vocab = set()
         for split in ["train", "val", "test"]:
             dataset = getattr(fake_data, f"{split}_dataset")
@@ -30,6 +30,6 @@ class TestFakeData:
                 assert len(item) == 2
                 img, target = item
                 assert img.shape == (1, 16, 16)
-                assert target.shape == (8,)
-                vocab |= set([x for x in target])
-        assert len(vocab) == 4
+                assert len(target) == (8 + 2)  # Add 2 for sos and eos tokens
+                vocab |= {x.item() for x in target}
+        assert len(vocab) == (4 + 3)  # Add 3 for sos, eos, pad tokens

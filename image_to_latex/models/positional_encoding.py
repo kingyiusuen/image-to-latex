@@ -10,7 +10,12 @@ class PositionalEncoding2D(nn.Module):
     Following https://arxiv.org/abs/2103.06450 by Sumeet Singh.
     """
 
-    def __init__(self, d_model: int, max_h: int = 2000, max_w: int = 2000) -> None:
+    def __init__(
+        self,
+        d_model: int,
+        max_h: int = 2000,
+        max_w: int = 2000,
+    ) -> None:
         super().__init__()
         self.d_model = d_model
         assert d_model % 2 == 0, f"Embedding depth {d_model} is not even"
@@ -54,7 +59,12 @@ class PositionalEncoding2D(nn.Module):
 class PositionalEncoding1D(nn.Module):
     """Classic Attention-is-all-you-need positional encoding."""
 
-    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000) -> None:
+    def __init__(
+        self,
+        d_model: int,
+        dropout: float = 0.1,
+        max_len: int = 5000,
+    ) -> None:
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
         pe = self.make_pe(d_model, max_len)  # (max_len, 1, d_model)
@@ -66,7 +76,8 @@ class PositionalEncoding1D(nn.Module):
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(
-            torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
+            torch.arange(0, d_model, 2).float()
+            * (-math.log(10000.0) / d_model)
         )
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)

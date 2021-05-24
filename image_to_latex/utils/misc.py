@@ -35,7 +35,9 @@ class TqdmUpTo(tqdm):
 
 def download_url(url: str, filename: Union[Path, str]) -> None:
     """Download a file from url to filename, with a progress bar."""
-    with TqdmUpTo(unit="B", unit_scale=True, unit_divisor=1024, miniters=1) as t:
+    with TqdmUpTo(
+        unit="B", unit_scale=True, unit_divisor=1024, miniters=1
+    ) as t:
         if isinstance(filename, Path):
             t.set_description(filename.name)
         else:
@@ -58,15 +60,22 @@ def verify_sha256(filename: Union[Path, str], expected_sha256: str):
     with open(filename, "rb") as f:
         actual_sha256 = hashlib.sha256(f.read()).hexdigest()
     if actual_sha256 != expected_sha256:
-        raise ValueError("Downloaded data file SHA-256 does not match that "
-                         "listed in metadata document.")
+        raise ValueError(
+            "Downloaded data file SHA-256 does not match that "
+            "listed in metadata document."
+        )
 
 
-def compute_time_elapsed(start_time: float, end_time: float) -> Tuple[int, int]:
+def compute_time_elapsed(
+    start_time: Union[float, int],
+    end_time: Union[float, int],
+) -> Tuple[int, int]:
     """Compute time elapsed."""
+    assert end_time >= start_time
     elapsed_time = end_time - start_time
     elapsed_mins = int(elapsed_time / 60)
-    elapsed_secs = int(elapsed_time - (elapsed_mins * 60))
+    elapsed_time -= elapsed_mins * 60
+    elapsed_secs = int(elapsed_time)
     return elapsed_mins, elapsed_secs
 
 
@@ -75,15 +84,19 @@ def find_max_length(lst: List[List[Any]]) -> int:
     return max(len(x) for x in lst)
 
 
-def find_first(x: torch.Tensor, element: Union[int, float], dim: int = 1) -> torch.Tensor:
+def find_first(
+    x: torch.Tensor,
+    element: Union[int, float],
+    dim: int = 1,
+) -> torch.Tensor:
     """Return indices of first occurence of element in x.
 
     If not found, return length of x along dim.
 
-    References:
+    Reference:
         https://discuss.pytorch.org/t/first-nonzero-index/24769/10
 
-    Examples:
+    Usage:
         >>> find_first(torch.tensor([[1, 2, 3], [2, 3, 3], [1, 1, 1]]), 3)
         tensor([2, 1, 3])
     """

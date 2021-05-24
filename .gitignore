@@ -10,11 +10,17 @@
 __pycache__
 .ipynb_checkpoints
 .mypy_cache
+
+# pytest
+.coverage*
 .pytest_cache
+htmlcov
 
 # Misc
-.github
 .DS_Store
-/notebooks
-/legacy
-/artifacts
+*.egg-info
+venv
+notebooks
+legacy
+artifacts
+wandb
