@@ -1,4 +1,3 @@
-import hashlib
 import importlib
 import tarfile
 from pathlib import Path
@@ -53,17 +52,6 @@ def extract_tar_file(filename: Union[Path, str]) -> None:
         print(f"Extracting {filename}...")
     with tarfile.open(filename, "r") as f:
         f.extractall()
-
-
-def verify_sha256(filename: Union[Path, str], expected_sha256: str):
-    """Verify the SHA-256 of a downloaded file."""
-    with open(filename, "rb") as f:
-        actual_sha256 = hashlib.sha256(f.read()).hexdigest()
-    if actual_sha256 != expected_sha256:
-        raise ValueError(
-            "Downloaded data file SHA-256 does not match that "
-            "listed in metadata document."
-        )
 
 
 def compute_time_elapsed(

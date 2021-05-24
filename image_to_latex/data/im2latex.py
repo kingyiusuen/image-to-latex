@@ -15,7 +15,6 @@ from image_to_latex.utils.misc import (
     download_url,
     extract_tar_file,
     find_max_length,
-    verify_sha256,
 )
 
 
@@ -66,13 +65,11 @@ class Im2Latex(BaseDataModule):
         for entry in metadata:
             filename = entry["filename"]
             url = entry["url"]
-            sha256 = entry["sha256"]
             # No need to download the file if it already exists in the data
             # directory
             if Path(filename).is_file():
                 continue
             download_url(url, filename)
-            verify_sha256(filename, sha256)
             if filename == "formula_images_processed.tar.gz":
                 extract_tar_file(filename)
         os.chdir(cur_dir)

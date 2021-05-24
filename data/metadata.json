@@ -1,27 +1,22 @@
 [
     {
         "filename": "im2latex_formulas.norm.lst",
-        "url": "http://lstm.seas.harvard.edu/latex/data/im2latex_formulas.norm.lst",
-        "sha256": "4d16bb9ba224a432002924499cacc084de859178da0da4987f66690bf6d3f9bc"
+        "url": "http://lstm.seas.harvard.edu/latex/data/im2latex_formulas.norm.lst"
     },
     {
         "filename": "im2latex_validate_filter.lst",
-        "url": "http://lstm.seas.harvard.edu/latex/data/im2latex_validate_filter.lst",
-        "sha256": "97301db47887e331ebd0276065c6b587bbe338f040b5425cce2494c1e2d85f01"
+        "url": "http://lstm.seas.harvard.edu/latex/data/im2latex_validate_filter.lst"
     },
     {
         "filename": "im2latex_train_filter.lst",
-        "url": "http://lstm.seas.harvard.edu/latex/data/im2latex_train_filter.lst",
-        "sha256": "2ea81411c6ffbb18d6acc745691915acd43e08272c06d17a1c8cc657654e8d93"
+        "url": "http://lstm.seas.harvard.edu/latex/data/im2latex_train_filter.lst"
     },
     {
         "filename": "im2latex_test_filter.lst",
-        "url": "http://lstm.seas.harvard.edu/latex/data/im2latex_test_filter.lst",
-        "sha256": "21f59377bfbb83682389c2fc81b63f0c16dd06d47c35a00e9e17cbb711bff9a6"
+        "url": "http://lstm.seas.harvard.edu/latex/data/im2latex_test_filter.lst"
     },
     {
         "filename": "formula_images_processed.tar.gz",
-        "url": "http://lstm.seas.harvard.edu/latex/data/formula_images_processed.tar.gz",
-        "sha256": "112e6e56925a5698b16e2ae987fed68a5c4e27823a3d049e47da6044c4316aa8"
+        "url": "http://lstm.seas.harvard.edu/latex/data/formula_images_processed.tar.gz"
     }
 ]
