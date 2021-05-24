@@ -1,6 +1,6 @@
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.4.0
+    rev: v4.0.1
     hooks:
     -   id: trailing-whitespace
     -   id: check-ast
@@ -15,7 +15,7 @@ repos:
         args: []
         files: .
 -   repo: https://github.com/PyCQA/flake8
-    rev: 3.9.1
+    rev: 3.9.2
     hooks:
     -   id: flake8
 -   repo: https://github.com/PyCQA/isort
@@ -31,7 +31,7 @@ repos:
         args: []
         files: .
 -   repo: https://github.com/asottile/pyupgrade
-    rev: v2.18.1
+    rev: v2.18.2
     hooks:
     -   id: pyupgrade
         args: [--py36-plus]

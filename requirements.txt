@@ -5,5 +5,5 @@ torchinfo==0.1.1
 tqdm==4.60.0
 typer==0.3.2
 wandb==0.10.30
-nltk==3.6.2
+nltk==3.2.5
 editdistance==0.5.3
