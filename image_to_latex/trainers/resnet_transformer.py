@@ -16,8 +16,9 @@ class ResnetTransformerTrainer(BaseTrainer):
         model: BaseModel,
         config: Dict[str, Any],
         wandb_run: Optional[wandb.sdk.wandb_run.Run] = None,
+        save_best_model: bool = False,
     ) -> None:
-        super().__init__(model, config, wandb_run)
+        super().__init__(model, config, wandb_run, save_best_model)
         self.criterion = nn.CrossEntropyLoss(
             ignore_index=self.tokenizer.pad_index
         )
