@@ -48,7 +48,7 @@ class CRNN(BaseModel):
         super().__init__(tokenizer, config)
 
         self.conv_dim = config.get("conv-dim", CONV_DIM)
-        self.rnn_type = config.get("rnn-type", RNN_TYPE)
+        self.rnn_type = config.get("rnn-type", RNN_TYPE).upper()
         assert self.rnn_type in ["RNN", "LSTM", "GRU"]
         self.rnn_dim = config.get("rnn-dim", RNN_DIM)
         self.rnn_layers = config.get("rnn-layers", RNN_LAYERS)
@@ -91,7 +91,14 @@ class CRNN(BaseModel):
         }
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass."""
+        """Forward pass.
+
+        Args:
+            x: (B, _C, _H, _W)
+
+        Returns:
+            (B, num_classes, S)
+        """
         x = self.cnn(x)
         B, C, H, W = x.size()
         x = x.permute(0, 2, 3, 1)  # (B, H, W, C)
