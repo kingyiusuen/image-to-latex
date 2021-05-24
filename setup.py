@@ -22,7 +22,8 @@ dev_packages = [
     "black==21.5b1",
     "flake8==3.9.2",
     "isort==5.8.0",
-    "mypy==0.812" "pre-commit==2.13.0",
+    "mypy==0.812",
+    "pre-commit==2.13.0",
 ]
 
 docs_packages = [
