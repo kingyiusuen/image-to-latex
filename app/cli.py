@@ -58,6 +58,13 @@ def train(
             "tracking. Registration required."
         ),
     ),
+    save_best_model: bool = typer.Option(
+        False,
+        help=(
+            "Specifies whether to save the model that has the best validation "
+            "loss."
+        ),
+    ),
     ctx: typer.Context = typer.Option(
         None,
         help=(
@@ -107,7 +114,7 @@ def train(
     trainer_class = import_class(
         f"image_to_latex.trainers.{model_name}Trainer"
     )
-    trainer = trainer_class(model, config, wandb_run)
+    trainer = trainer_class(model, config, wandb_run, save_best_model)
     trainer.fit(train_dataloader, val_dataloader)
     trainer.test(test_dataloader)
 
@@ -120,14 +127,14 @@ def train(
         wandb.config.update(all_config)
         artifact = wandb.Artifact(name=f"{model_name}", type="model")
         with tempfile.TemporaryDirectory() as dp:
-            if trainer.save_best_model:
+            if save_best_model:
                 torch.save(trainer.checkpoint, Path(dp, "model.pth"))
             with open(Path(dp, "token_to_index.json")) as f:
                 json.dump(trainer.tokenizer.token_to_index, f)
             artifact.add_dir(dp)
         wandb_run.log_artifact(artifact)
     else:
-        if trainer.save_best_model:
+        if save_best_model:
             torch.save(trainer.checkpoint, ARTIFACTS_DIRNAME / "model.pth")
 
 

@@ -18,7 +18,6 @@ MAX_EPOCHS = 100
 PATIENCE = 10
 LR = 1e-4
 MAX_LR = 1e-2
-SAVE_BEST_MODEL = False
 USE_SCHEDULER = False
 
 CHECKPOINT_FILENAME = "best.pth"
@@ -31,6 +30,8 @@ class BaseTrainer:
         model: The model to be fitted.
         config: Configurations passed from command line.
         wandb_run: An instance of a Weights & Biases run.
+        save_best_model: Specifies whether to save the model that has the best
+            validation loss.
 
     Attributes:
         max_epochs: Maximum number of epochs to run.
@@ -40,8 +41,6 @@ class BaseTrainer:
         max_lr: Maximum learning rate to use in one-cycle learning rate
             scheduler. Use -1 to to run learning rate range test. Ignored if
             `use_scheduler` is False.
-        save_best_model: Save a checkpoint when the current model has the best
-            validation loss so far.
         use_scheduler: Specifies whether to use learning rate scheduler or not.
         start_epoch: The first epoch number.
         best_val_loss: Best validation loss encountered so far.
@@ -59,15 +58,16 @@ class BaseTrainer:
         model: BaseModel,
         config: Dict[str, Any],
         wandb_run: Optional[wandb.sdk.wandb_run.Run] = None,
+        save_best_model: bool = False,
     ) -> None:
         self.model = model
         self.wandb_run = wandb_run
+        self.save_best_model = save_best_model
 
         self.max_epochs = config.get("max-epochs", MAX_EPOCHS)
         self.patience = config.get("patience", PATIENCE)
         self.lr = config.get("lr", LR)
         self.max_lr = config.get("max-lr", MAX_LR)
-        self.save_best_model = config.get("save-best-model", SAVE_BEST_MODEL)
         self.use_scheduler = config.get("use-scheduler", USE_SCHEDULER)
 
         self.tokenizer = self.model.tokenizer
