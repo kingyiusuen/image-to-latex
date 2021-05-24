@@ -248,7 +248,10 @@ class BaseTrainer:
 
     def _find_optimal_lr(self, dataloader: DataLoader) -> Optional[float]:
         """Returns suggested learning rate."""
-        lr_finder = LRFinder_(self.model, self.optimizer, self.criterion)
+        lr_finder = LRFinder_(
+            self.model, self.optimizer, self.criterion, self.device
+        )
         lr_finder.range_test(dataloader, end_lr=100, num_iter=100)
         max_lr = lr_finder.suggest_lr()
+        lr_finder.reset()
         return max_lr
