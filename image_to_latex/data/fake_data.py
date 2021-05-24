@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
@@ -19,8 +19,13 @@ MAX_SEQ_LEN = 10
 class FakeData(BaseDataModule):
     """Fake dataset for testing/debugging."""
 
-    def __init__(self, config: Dict[str, Any]) -> None:
-        super().__init__(config)
+    def __init__(
+        self,
+        batch_size: int = 32,
+        num_workers: int = 0,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__(batch_size, num_workers, config)
         self.num_samples = config.get("num-samples", NUM_SAMPLES)
         self.image_height = config.get("image-height", IMAGE_HEIGHT)
         self.image_width = config.get("image-width", IMAGE_WIDTH)

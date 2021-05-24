@@ -1,16 +1,12 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
 from image_to_latex.utils.data import Tokenizer
-
-
-BATCH_SIZE = 32
-NUM_WORKERS = 0
 
 
 class BaseDataModule(ABC):
@@ -24,10 +20,16 @@ class BaseDataModule(ABC):
     https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(
+        self,
+        batch_size: int = 32,
+        num_workers: int = 0,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> None:
         super().__init__()
-        self.batch_size = config.get("batch-size", BATCH_SIZE)
-        self.num_workers = config.get("num-workers", NUM_WORKERS)
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        config = config if config else {}
 
         self.transform = transforms.ToTensor()
 

@@ -31,12 +31,7 @@ def _parse_args(ctx: typer.Context) -> Dict[str, Any]:
     for i in range(0, len(unknown_args), 2):
         name = unknown_args[i].split("--")[1]
         value = unknown_args[i + 1]
-        if name.lower() in ["t", "true"]:
-            config[name] = True
-        elif name.lower() in ["f", "false"]:
-            config[name] = False
-        else:
-            config[name] = literal_eval(value)
+        config[name] = literal_eval(value)
     return config
 
 
@@ -51,18 +46,46 @@ def train(
     dataset_name: str = typer.Argument(
         "Im2Latex", help="{'Im2Latex', 'FakeData'}. Dataset to use."
     ),
+    batch_size: int = typer.Option(
+        32, help="The number of samples per batch."
+    ),
+    num_workers: int = typer.Option(
+        0, help="The number of subprocesses to use for data loading."
+    ),
+    max_epochs: int = typer.Option(
+        100, help="Maximum number of epochs to run."
+    ),
+    patience: int = typer.Option(
+        10,
+        help=(
+            "Number of epochs with no improvement before stopping the "
+            "training. Use -1 to disable early stopping."
+        ),
+    ),
+    lr: float = typer.Option(0.001, help="Learning rate."),
+    max_lr: float = typer.Option(
+        0.01,
+        help=(
+            "Maximum learning rate to use in one-cycle learning rate "
+            "scheduler. Use -1 to to run learning rate range test. Ignored if "
+            "`use_scheduler` is False."
+        ),
+    ),
+    use_scheduler: bool = typer.Option(
+        True, help="Specifies whether to use a learning rate scheduler."
+    ),
+    save_best_model: bool = typer.Option(
+        True,
+        help=(
+            "Specifies whether to save the model that has the best validation "
+            "loss."
+        ),
+    ),
     use_wandb: bool = typer.Option(
         False,
         help=(
             "Specifies whether to use Weights & Biases for experiment "
             "tracking. Registration required."
-        ),
-    ),
-    save_best_model: bool = typer.Option(
-        False,
-        help=(
-            "Specifies whether to save the model that has the best validation "
-            "loss."
         ),
     ),
     ctx: typer.Context = typer.Option(
@@ -91,7 +114,7 @@ def train(
 
     # Set up dataloaders
     data_class = import_class(f"image_to_latex.data.{dataset_name}")
-    data_module = data_class(config)
+    data_module = data_class(batch_size, num_workers, config)
     data_module.prepare_data()
     data_module.create_datasets()
     train_dataloader = data_module.get_dataloader("train")
@@ -114,7 +137,16 @@ def train(
     trainer_class = import_class(
         f"image_to_latex.trainers.{model_name}Trainer"
     )
-    trainer = trainer_class(model, config, wandb_run, save_best_model)
+    trainer = trainer_class(
+        model=model,
+        max_epochs=max_epochs,
+        patience=patience,
+        lr=lr,
+        max_lr=max_lr,
+        use_scheduler=use_scheduler,
+        save_best_model=save_best_model,
+        wandb_run=wandb_run,
+    )
     trainer.fit(train_dataloader, val_dataloader)
     trainer.test(test_dataloader)
 

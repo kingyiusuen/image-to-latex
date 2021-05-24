@@ -1,10 +1,9 @@
-from typing import Any, Dict, Optional, Sequence
+from typing import Sequence
 
 import torch
 import torch.nn as nn
 
 import wandb
-from image_to_latex.models import BaseModel
 from image_to_latex.trainers import BaseTrainer
 from image_to_latex.utils.misc import find_first
 
@@ -12,14 +11,8 @@ from image_to_latex.utils.misc import find_first
 class CRNNTrainer(BaseTrainer):
     """Trainer for CRNN model."""
 
-    def __init__(
-        self,
-        model: BaseModel,
-        config: Dict[str, Any],
-        wandb_run: Optional[wandb.sdk.wandb_run.Run] = None,
-        save_best_model: bool = False,
-    ) -> None:
-        super().__init__(model, config, wandb_run, save_best_model)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.criterion = nn.CTCLoss(zero_infinity=True)
 
     def training_step(self, batch: Sequence) -> torch.Tensor:

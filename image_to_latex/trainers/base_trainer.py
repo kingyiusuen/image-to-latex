@@ -14,26 +14,11 @@ from image_to_latex.utils.metrics import bleu_score, edit_distance
 from image_to_latex.utils.misc import compute_time_elapsed
 
 
-MAX_EPOCHS = 100
-PATIENCE = 10
-LR = 1e-4
-MAX_LR = 1e-2
-USE_SCHEDULER = False
-
-CHECKPOINT_FILENAME = "best.pth"
-
-
 class BaseTrainer:
     """Specify every aspect of training.
 
     Args:
         model: The model to be fitted.
-        config: Configurations passed from command line.
-        wandb_run: An instance of a Weights & Biases run.
-        save_best_model: Specifies whether to save the model that has the best
-            validation loss.
-
-    Attributes:
         max_epochs: Maximum number of epochs to run.
         patience: Number of epochs with no improvement before stopping the
             training. Use -1 to disable early stopping.
@@ -42,6 +27,12 @@ class BaseTrainer:
             scheduler. Use -1 to to run learning rate range test. Ignored if
             `use_scheduler` is False.
         use_scheduler: Specifies whether to use learning rate scheduler or not.
+        save_best_model: Specifies whether to save the model that has the best
+            validation loss.
+        wandb_run: An instance of a Weights & Biases run.
+        config: Configurations passed from command line.
+
+    Attributes:
         start_epoch: The first epoch number.
         best_val_loss: Best validation loss encountered so far.
         no_improve_count: Number of epochs since the last improvement in
@@ -56,19 +47,22 @@ class BaseTrainer:
     def __init__(
         self,
         model: BaseModel,
-        config: Dict[str, Any],
+        max_epochs: int = 100,
+        patience: int = 10,
+        lr: float = 0.001,
+        max_lr: float = 0.01,
+        use_scheduler: bool = True,
+        save_best_model: bool = True,
         wandb_run: Optional[wandb.sdk.wandb_run.Run] = None,
-        save_best_model: bool = False,
     ) -> None:
         self.model = model
-        self.wandb_run = wandb_run
+        self.max_epochs = max_epochs
+        self.patience = patience
+        self.lr = lr
+        self.max_lr = max_lr
+        self.use_scheduler = use_scheduler
         self.save_best_model = save_best_model
-
-        self.max_epochs = config.get("max-epochs", MAX_EPOCHS)
-        self.patience = config.get("patience", PATIENCE)
-        self.lr = config.get("lr", LR)
-        self.max_lr = config.get("max-lr", MAX_LR)
-        self.use_scheduler = config.get("use-scheduler", USE_SCHEDULER)
+        self.wandb_run = wandb_run
 
         self.tokenizer = self.model.tokenizer
         self.start_epoch = 1

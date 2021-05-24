@@ -15,7 +15,7 @@ class TestFakeData:
             "num-classes": 4,
             "max-seq-len": 8,
         }
-        return FakeData(config)
+        return FakeData(0, 0, config)
 
     def test_create_datasets(self, fake_data):
         fake_data.create_datasets()
