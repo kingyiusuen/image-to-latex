@@ -98,7 +98,7 @@ class Im2Latex(BaseDataModule):
                 formulas, add_sos=True, add_eos=True, pad_to=max_seq_len
             )
             return BaseDataset(
-                images, torch.IntTensor(targets), self.transform
+                images, torch.LongTensor(targets), self.transform
             )
 
         print("Loading datasets...")
