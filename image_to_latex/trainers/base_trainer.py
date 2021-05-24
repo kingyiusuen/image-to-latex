@@ -127,7 +127,7 @@ class BaseTrainer:
                         loss = self.validation_step(batch)
                     total_loss += loss.item()
                     pbar.set_postfix({f"{phase}_loss": loss.item()})
-                avg_loss[phase] = total_loss / len(data_loaders[phase].dataset)
+                avg_loss[phase] = total_loss / len(data_loaders[phase].dataset)  # type: ignore  # noqa: E501
             end_time = time.time()
             mins, secs = compute_time_elapsed(start_time, end_time)
 
