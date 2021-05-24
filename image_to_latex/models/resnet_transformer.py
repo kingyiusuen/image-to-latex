@@ -60,7 +60,7 @@ class ResnetTransformer(BaseModel):
     def __init__(self, tokenizer: Tokenizer, config: Dict[str, Any]) -> None:
         super().__init__(tokenizer, config)
 
-        self.resnet_layers = config.get("resnet_layers", RESNET_LAYERS)
+        self.resnet_layers = config.get("resnet-layers", RESNET_LAYERS)
         assert 0 <= self.resnet_layers <= 4
         self.tf_dim = config.get("tf-dim", TF_DIM)
         self.tf_fc_dim = config.get("tf-fc-dim", TF_FC_DIM)
