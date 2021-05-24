@@ -7,7 +7,7 @@ repos:
     -   id: check-json
     -   id: check-yaml
     -   id: check-added-large-files
-        args: ['--maxkb=1000']
+        args: ["--maxkb=1000"]
 -   repo: https://github.com/psf/black
     rev: 21.5b1
     hooks:
@@ -29,6 +29,7 @@ repos:
     hooks:
     -   id: mypy
         args: [--ignore-missing-imports, --no-strict-optional]
+        files: .
 -   repo: local
     hooks:
     -   id: test-non-training
