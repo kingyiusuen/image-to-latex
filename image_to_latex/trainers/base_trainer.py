@@ -100,28 +100,7 @@ class BaseTrainer:
         val_dataloader: DataLoader,
     ) -> None:
         """Specify what happens during training."""
-        # Configure optimizier
-        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-6)
-
-        # Configure scheduler
-        if self.use_scheduler:
-            # Find maximum learning rate
-            if self.max_lr < 0:
-                print("Running learning rate range test...")
-                self.max_lr = self._find_optimal_lr(train_dataloader)
-
-            self.scheduler = optim.lr_scheduler.OneCycleLR(  # type: ignore
-                self.optimizer,
-                max_lr=self.max_lr,
-                epochs=self.max_epochs,
-                steps_per_epoch=len(train_dataloader),
-                pct_start=0.5,
-                div_factor=10,
-                final_div_factor=1e4,
-            )
-
-        # For display purpose
-        width = len(str(self.max_epochs))
+        self._configure_optimizer(train_dataloader)
 
         data_loaders = {"train": train_dataloader, "val": val_dataloader}
         self.model.to(self.device)
@@ -148,11 +127,12 @@ class BaseTrainer:
                         loss = self.validation_step(batch)
                     total_loss += loss.item()
                     pbar.set_postfix({f"{phase}_loss": loss.item()})
-                avg_loss[phase] = total_loss / len(data_loaders[phase])
+                avg_loss[phase] = total_loss / len(data_loaders[phase].dataset)
             end_time = time.time()
             mins, secs = compute_time_elapsed(start_time, end_time)
 
             # Print training progress
+            width = len(str(self.max_epochs))
             print(
                 f"Epoch {epoch:{width}d}/{self.max_epochs} | "
                 f"Train loss: {avg_loss['train']:.3f} | "
@@ -160,7 +140,8 @@ class BaseTrainer:
                 f"Time: {mins}m {secs}s"
             )
 
-            # Early stopping and save checkpoint
+            # Check if the model stops improving
+            # Save checkpoint if necessary
             if self._early_stopping(avg_loss["val"]):
                 print(
                     f"Training is terminated because validation loss has "
@@ -221,6 +202,30 @@ class BaseTrainer:
         if self.wandb_run:
             wandb.run.summary["bleu"] = bleu  # type: ignore
             wandb.run.summary["edit_distance"] = ed  # type: ignore
+
+    def _configure_optimizer(self, train_dataloader: DataLoader) -> None:
+        """Configure optimizier and scheduler."""
+        # Configure optimizer
+        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-6)
+
+        if not self.use_scheduler:
+            return
+
+        # Run learning rate range test to find maximum learning rate
+        if self.max_lr < 0:
+            print("Running learning rate range test...")
+            self.max_lr = self._find_optimal_lr(train_dataloader)
+
+        # Configure scheduler
+        self.scheduler = optim.lr_scheduler.OneCycleLR(  # type: ignore
+            self.optimizer,
+            max_lr=self.max_lr,
+            epochs=self.max_epochs,
+            steps_per_epoch=len(train_dataloader),
+            pct_start=0.5,
+            div_factor=10,
+            final_div_factor=1e4,
+        )
 
     def _move_to_device(self, batch: Sequence) -> List[Any]:
         """Move tensors to device."""
