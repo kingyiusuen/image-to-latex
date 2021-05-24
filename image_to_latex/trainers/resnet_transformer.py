@@ -3,7 +3,6 @@ from typing import Sequence
 import torch
 import torch.nn as nn
 
-import wandb
 from image_to_latex.trainers import BaseTrainer
 
 
@@ -13,7 +12,8 @@ class ResnetTransformerTrainer(BaseTrainer):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.criterion = nn.CrossEntropyLoss(
-            ignore_index=self.tokenizer.pad_index
+            ignore_index=self.tokenizer.pad_index,
+            reduction="sum",
         )
 
     def training_step(self, batch: Sequence) -> torch.Tensor:
@@ -21,8 +21,6 @@ class ResnetTransformerTrainer(BaseTrainer):
         imgs, targets = batch
         logits = self.model(imgs, targets[:, :-1])
         loss = self.criterion(logits, targets[:, 1:])
-        if self.wandb_run:
-            wandb.log({"train_loss": loss.item()})
         return loss
 
     @torch.no_grad()
@@ -31,6 +29,4 @@ class ResnetTransformerTrainer(BaseTrainer):
         imgs, targets = batch
         logits = self.model(imgs, targets[:, :-1])
         loss = self.criterion(logits, targets[:, 1:])
-        if self.wandb_run:
-            wandb.log({"val_loss": loss.item()})
         return loss

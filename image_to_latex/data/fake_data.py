@@ -53,7 +53,7 @@ class FakeData(BaseDataModule):
             seqs, add_sos=True, add_eos=True, pad_to=(self.max_seq_len + 2)
         )
         fake_dataset = BaseDataset(
-            images, torch.IntTensor(targets), self.transform
+            images, torch.LongTensor(targets), self.transform
         )
         val_size = int(self.num_samples * 0.25)
         self.train_dataset, self.val_dataset, self.test_dataset = random_split(

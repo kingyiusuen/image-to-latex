@@ -3,7 +3,6 @@ from typing import Sequence
 import torch
 import torch.nn as nn
 
-import wandb
 from image_to_latex.trainers import BaseTrainer
 from image_to_latex.utils.misc import find_first
 
@@ -13,7 +12,7 @@ class CRNNTrainer(BaseTrainer):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.criterion = nn.CTCLoss(zero_infinity=True)
+        self.criterion = nn.CTCLoss(zero_infinity=True, reduction="sum")
 
     def training_step(self, batch: Sequence) -> torch.Tensor:
         """Training step."""
@@ -26,8 +25,6 @@ class CRNNTrainer(BaseTrainer):
         loss = self.criterion(
             logprobs_for_loss, targets, input_lengths, target_lengths
         )
-        if self.wandb_run:
-            wandb.log({"train_loss": loss.item()})
         return loss
 
     @torch.no_grad()
@@ -44,6 +41,4 @@ class CRNNTrainer(BaseTrainer):
         loss = self.criterion(
             logprobs_for_loss, targets, input_lengths, target_lengths
         )
-        if self.wandb_run:
-            wandb.log({"val_loss": loss.item()})
         return loss
