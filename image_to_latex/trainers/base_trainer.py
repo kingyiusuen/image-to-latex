@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 import wandb
 from image_to_latex.models.base_model import BaseModel
-from image_to_latex.utils.lr_finder import LRFinder_
+from image_to_latex.trainers.lr_finder import LRFinder_
 from image_to_latex.utils.metrics import bleu_score, edit_distance
 from image_to_latex.utils.misc import compute_time_elapsed
 
@@ -74,6 +74,7 @@ class BaseTrainer:
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
         )
+        TRAINING_LOGS_DIRNAME.mkdir(parents=True, exist_ok=True)
 
         self.criterion: Union[nn.CrossEntropyLoss, nn.CTCLoss]
         self.optimizer: optim.Optimizer
@@ -126,7 +127,9 @@ class BaseTrainer:
                     pbar.set_postfix({f"{phase}_loss": loss.item()})
                 avg_loss[phase] = total_loss / len(data_loaders[phase])  # type: ignore  # noqa: E501
                 if self.wandb_run:
-                    wandb.log({f"{phase}_loss": avg_loss[phase]})
+                    wandb.log(
+                        {f"{phase}_loss": avg_loss[phase], "epoch": epoch}
+                    )
             end_time = time.time()
             mins, secs = compute_time_elapsed(start_time, end_time)
 
@@ -170,7 +173,8 @@ class BaseTrainer:
     def test(self, test_dataloader: DataLoader) -> None:
         """Specify what happens during testing."""
         if self.save_best_model:
-            self.model.load_state_dict(self.checkpoint)  # type: ignore
+            checkpoint = torch.load(TRAINING_LOGS_DIRNAME / "model.pth")
+            self.model.load_state_dict(checkpoint)  # type: ignore
 
         references: List[List[str]] = []
         hypothesis: List[List[str]] = []
