@@ -5,7 +5,6 @@ from ast import literal_eval
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import torch
 import typer
 from torchinfo import summary
 
@@ -13,8 +12,9 @@ import wandb
 from image_to_latex.utils.misc import import_class
 
 
-ARTIFACTS_DIRNAME = Path(__file__).resolve().parents[1] / "artifacts"
-CHECKPOINT_FILENAME = "best.pth"
+PROJECT_DIRNAME = Path(__file__).resolve().parents[1]
+ARTIFACTS_DIRNAME = PROJECT_DIRNAME / "artifacts"
+TRAINING_LOGS_DIRNAME = PROJECT_DIRNAME / "logs"
 
 
 app = typer.Typer()
@@ -158,16 +158,15 @@ def train(
         all_config.update(trainer.config())
         wandb.config.update(all_config)
         artifact = wandb.Artifact(name=f"{model_name}", type="model")
-        with tempfile.TemporaryDirectory() as dp:
+        with tempfile.TemporaryDirectory() as td:
             if save_best_model:
-                torch.save(trainer.checkpoint, Path(dp, "model.pth"))
-            with open(Path(dp, "token_to_index.json")) as f:
-                json.dump(trainer.tokenizer.token_to_index, f)
-            artifact.add_dir(dp)
-        wandb_run.log_artifact(artifact)
-    else:
-        if save_best_model:
-            torch.save(trainer.checkpoint, ARTIFACTS_DIRNAME / "model.pth")
+                shutil.copyfile(
+                    src=Path(TRAINING_LOGS_DIRNAME, "model.pth"),
+                    dst=Path(td, "model.pth"),
+                )
+            trainer.tokenizer.save(Path(td, "token_to_index.json"))
+            artifact.add_dir(td)
+            wandb_run.log_artifact(artifact)
 
 
 @app.command()

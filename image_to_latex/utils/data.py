@@ -1,4 +1,6 @@
-from typing import Dict, Iterable, List, Optional
+import json
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Union
 
 from PIL import Image
 
@@ -156,6 +158,11 @@ class Tokenizer:
                 sentence.append(token)
             corpus.append(sentence)
         return corpus
+
+    def save(self, filename: Union[Path, str]):
+        """Save token-to-index mapping to a json file."""
+        with open(filename, "w") as f:
+            json.dump(self.token_to_index, f, indent=4)
 
 
 def resize_image(image: Image, width: int, height: int) -> Image:

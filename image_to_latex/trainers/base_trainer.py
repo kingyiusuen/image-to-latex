@@ -1,4 +1,5 @@
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 import torch
@@ -12,6 +13,9 @@ from image_to_latex.models.base_model import BaseModel
 from image_to_latex.utils.lr_finder import LRFinder_
 from image_to_latex.utils.metrics import bleu_score, edit_distance
 from image_to_latex.utils.misc import compute_time_elapsed
+
+
+TRAINING_LOGS_DIRNAME = Path(__file__).resolve().parents[2] / "logs"
 
 
 class BaseTrainer:
@@ -41,7 +45,6 @@ class BaseTrainer:
         criterion: Loss function.
         optimizer: Optimization algorithm to use.
         scheduler: Learning rate scheduler.
-        checkpoint: State dict for model.
     """
 
     def __init__(
@@ -75,7 +78,6 @@ class BaseTrainer:
         self.criterion: Union[nn.CrossEntropyLoss, nn.CTCLoss]
         self.optimizer: optim.Optimizer
         self.scheduler: optim.lr_scheduler._LRScheduler
-        self.checkpoint: Dict[str, torch.Tensor]
 
     def config(self) -> Dict[str, Any]:
         """Returns important configuration for reproducibility."""
@@ -247,7 +249,8 @@ class BaseTrainer:
         """Save a checkpoint to be used for inference."""
         if not self.save_best_model:
             return
-        self.checkpoint = self.model.state_dict()
+        checkpoint = self.model.state_dict()
+        torch.save(checkpoint, TRAINING_LOGS_DIRNAME / "model.pth")
 
     def _find_optimal_lr(self, dataloader: DataLoader) -> Optional[float]:
         """Returns suggested learning rate."""
