@@ -22,5 +22,6 @@ htmlcov
 venv
 notebooks
 legacy
+logs
 artifacts
 wandb

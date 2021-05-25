@@ -114,8 +114,8 @@ class CRNN(BaseModel):
         x = x.permute(1, 0, 2)  # (B, S, rnn_dim)
         x = self.fc(x)  # (B, S, num_classes)
         logits = x.permute(0, 2, 1)  # (B, num_classes, S)
-        logprobs = torch.log_softmax(logits, dim=1)  # (B, num_classes, S)
-        return logprobs
+        log_probs = torch.log_softmax(logits, dim=1)  # (B, num_classes, S)
+        return log_probs
 
     def predict(
         self,
@@ -126,11 +126,11 @@ class CRNN(BaseModel):
         if max_output_len is None:
             max_output_len = 200
 
-        logprobs = self(x)
-        B = logprobs.shape[0]
-        argmax = logprobs.argmax(1)
+        log_probs = self(x)
+        B = log_probs.shape[0]
+        argmax = log_probs.argmax(1)
         decoded = (
-            torch.ones((B, max_output_len)).type_as(logprobs).int()
+            torch.ones((B, max_output_len)).type_as(log_probs).int()
         ) * self.pad_index
         for i in range(B):
             seq = [

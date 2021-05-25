@@ -17,13 +17,13 @@ class CRNNTrainer(BaseTrainer):
     def training_step(self, batch: Sequence) -> torch.Tensor:
         """Training step."""
         imgs, targets = batch
-        logprobs = self.model(imgs)  # (B, num_classes, S)
-        B, _, S = logprobs.shape
-        logprobs_for_loss = logprobs.permute(2, 0, 1)  # (S, B, num_classes)
-        input_lengths = torch.ones(B).type_as(logprobs_for_loss).int() * S
+        log_probs = self.model(imgs)  # (B, num_classes, S)
+        B, _, S = log_probs.shape
+        log_probs_for_loss = log_probs.permute(2, 0, 1)  # (S, B, num_classes)
+        input_lengths = torch.ones(B).type_as(log_probs_for_loss).int() * S
         target_lengths = find_first(targets, element=self.tokenizer.pad_index)
         loss = self.criterion(
-            logprobs_for_loss, targets, input_lengths, target_lengths
+            log_probs_for_loss, targets, input_lengths, target_lengths
         )
         return loss
 
@@ -31,14 +31,14 @@ class CRNNTrainer(BaseTrainer):
     def validation_step(self, batch: Sequence) -> torch.Tensor:
         """Validation step."""
         imgs, targets = batch
-        logprobs = self.model(imgs)
-        B, _, S = logprobs.shape
+        log_probs = self.model(imgs)
+        B, _, S = log_probs.shape
 
-        logprobs_for_loss = logprobs.permute(2, 0, 1)  # (S, B, num_classes)
-        input_lengths = torch.ones(B).type_as(logprobs_for_loss).int() * S
+        log_probs_for_loss = log_probs.permute(2, 0, 1)  # (S, B, num_classes)
+        input_lengths = torch.ones(B).type_as(log_probs_for_loss).int() * S
         target_lengths = find_first(targets, element=self.tokenizer.pad_index)
         target_lengths = target_lengths.type_as(targets)
         loss = self.criterion(
-            logprobs_for_loss, targets, input_lengths, target_lengths
+            log_probs_for_loss, targets, input_lengths, target_lengths
         )
         return loss

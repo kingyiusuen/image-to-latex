@@ -10,6 +10,10 @@ from image_to_latex.models import (
     PositionalEncoding1D,
     PositionalEncoding2D,
 )
+from image_to_latex.models.beam_search import (
+    BeamSearchCandidate,
+    TopKPriorityQueue,
+)
 
 
 RESNET_LAYERS = 2
@@ -19,6 +23,7 @@ TF_DROPOUT = 0.4
 TF_LAYERS = 2
 TF_NHEAD = 4
 MAX_OUTPUT_LEN = 250
+BEAM_WIDTH = 5
 
 
 def generate_square_subsequent_mask(size: int) -> torch.Tensor:
@@ -44,8 +49,8 @@ class ResnetTransformer(BaseModel):
             - the dimension of label embeddings, and
             - the dimension of positional encoding.
         max_output_len: Maximum output length during inference.
-        resnet: ResNet model. Pretrained weights are not used because the input
-            domain is quite different here.
+        resnet: ResNet-18 model. Pretrained weights are not used because the
+            input domain here is quite different from the original problem.
         encoder_projection: A convoluational layer with kernerl size of 1. It
             aims to reduce the number of channels.
         enc_pos_encoder: 2D positional encoding for the encoder.
@@ -67,6 +72,7 @@ class ResnetTransformer(BaseModel):
         self.tf_dropout = self.args.get("tf-dropout", TF_DROPOUT)
         self.tf_layers = self.args.get("tf-layers", TF_LAYERS)
         self.max_output_len = self.args.get("max-output-len", MAX_OUTPUT_LEN)
+        self.beam_width = self.args.get("beam_width", BEAM_WIDTH)
 
         # Encoder
         resnet = torchvision.models.resnet18(pretrained=False)
@@ -186,17 +192,17 @@ class ResnetTransformer(BaseModel):
     def predict(
         self,
         x: torch.Tensor,
+        beam_width: int = 1,
         max_output_len: Optional[int] = None,
     ) -> torch.Tensor:
         """Make predctions at inference time.
 
-        Predict y from x one token at a time. This method is greedy decoding.
-        Beam search can be used instead for a potential accuracy boost.
-
         Args:
             x: (B, H, W) images
-            max_output_len: Maximum output length. Can be smaller than the
-                one in positional encoding.
+            beam_width: The number of sequences to store at each step. If
+                smaller than or equal to 1, use greedy search.
+            max_output_len: Maximum output length. Have to be smaller than or
+                equal to the `max_len` in positional encoding.
 
         Returns:
             (B, max_output_len) with elements in (0, num_classes - 1).
@@ -209,33 +215,102 @@ class ResnetTransformer(BaseModel):
                 f"{self.max_output_len}"
             )
 
+        if beam_width <= 1:
+            output_indices = self._greedy_search(x, max_output_len)
+        else:
+            output_indices = self._beam_search(x, beam_width, max_output_len)
+        return output_indices
+
+    def _greedy_search(
+        self,
+        x: torch.Tensor,
+        max_output_len: int,
+    ) -> torch.Tensor:
         B = x.shape[0]
         S = max_output_len
 
         encoded_x = self.encode(x)  # (Sx, B, E)
 
-        output_tokens = (
+        output_indices = (
             torch.full((B, S), self.pad_index).type_as(x).long()
-        )  # (B, S)
-        output_tokens[:, 0] = self.sos_index
+        )  # (B, S)  # noqa: E501
+        output_indices[:, 0] = self.sos_index
         for Sy in range(1, S):
-            y = output_tokens[:, :Sy]  # (B, Sy)
-            logits = self.decode(y, encoded_x)  # (Sy, B, C)
+            y = output_indices[:, :Sy]  # (B, Sy)
+            logits = self.decode(y, encoded_x)  # (Sy, B, num_classes)
             output = torch.argmax(logits, dim=-1)  # (Sy, B)
-            output_tokens[:, Sy] = output[-1:]  # Set the last output token
+            output_indices[:, Sy] = output[-1:]  # Set the last output token
 
             # Early stopping of prediction loop to speed up prediction
-            current_tokens = output_tokens[:, Sy]
-            is_ended = current_tokens == self.eos_index
-            is_padded = current_tokens == self.pad_index
+            current_indices = output_indices[:, Sy]
+            is_ended = current_indices == self.eos_index
+            is_padded = current_indices == self.pad_index
             if (is_ended | is_padded).all():
                 break
 
         # Set all tokens after end token to be padding
         for Sy in range(1, S):
-            previous_tokens = output_tokens[:, Sy - 1]
-            is_ended = previous_tokens == self.eos_index
-            is_padded = previous_tokens == self.pad_index
-            output_tokens[(is_ended | is_padded), Sy] = self.pad_index
+            previous_indices = output_indices[:, Sy - 1]
+            is_ended = previous_indices == self.eos_index
+            is_padded = previous_indices == self.pad_index
+            output_indices[(is_ended | is_padded), Sy] = self.pad_index
 
-        return output_tokens
+        return output_indices
+
+    def _beam_search(
+        self,
+        x: torch.Tensor,
+        beam_width: int,
+        max_output_len: int,
+    ) -> torch.Tensor:
+        B = x.shape[0]
+        S = max_output_len
+        k = beam_width
+
+        encoded_x = self.encode(x)  # (Sx, B, E)
+        output_indices = torch.full((B, S), self.pad_index).type_as(x).long()
+
+        # Loop over each sample in the batch
+        for i in range(B):
+            initial_seq = torch.full((S,), self.pad_index).type_as(x).long()
+            initial_seq[0] = self.sos_index
+            initial_candidate = BeamSearchCandidate(
+                log_likelihood=0,
+                seq=initial_seq,
+                current_seq_len=1,
+                eos_index=self.eos_index,
+            )
+            queue = TopKPriorityQueue(k)
+            queue.push(initial_candidate)
+
+            while True:
+                # Create a fixed-size priority queue (min heap). Only keep the
+                # top k candidates to save memory.
+                new_queue = TopKPriorityQueue(k)
+                for candidate in queue:
+                    if candidate.has_ended():
+                        new_queue.push(candidate)
+                        continue
+                    y = candidate.seq[: len(candidate)].unsqueeze(0)  # (1, Sy)
+                    logits = self.decode(
+                        y, encoded_x[:, i, :]
+                    )  # (Sy, 1, num_classes)
+                    logits = logits.squeeze(1)  # (Sy, num_classes)
+                    log_probs = torch.log_softmax(
+                        logits, dim=1
+                    )  # (Sy, num_classes)
+                    top_k_log_probs, top_k_indices = log_probs.topk(k)
+                    for log_prob, index in zip(top_k_log_probs, top_k_indices):
+                        new_candidate = candidate.extend(log_prob, index)
+                        new_queue.push(new_candidate)
+                queue = new_queue
+                # Stop the search if all candidates have already generated the
+                # end-of-sequence token
+                all_ended = all(candidate.has_ended() for candidate in queue)
+                if all_ended:
+                    break
+
+            best_candidate = queue.get_largest_item(keep_items=False)
+            output_indices[i, :] = best_candidate.seq
+
+        return output_indices

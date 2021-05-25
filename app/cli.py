@@ -29,7 +29,7 @@ def _parse_args(ctx: typer.Context) -> Dict[str, Any]:
         )
     args: Dict[str, Any] = {}
     for i in range(0, len(unknown_args), 2):
-        name = unknown_args[i].split("--")[1]
+        name = unknown_args[i].split("--")[1].replace("_", "-")
         value = unknown_args[i + 1]
         args[name] = literal_eval(value)
     return args
@@ -68,11 +68,11 @@ def train(
         help=(
             "Maximum learning rate to use in one-cycle learning rate "
             "scheduler. Use -1 to to run learning rate range test. Ignored if "
-            "`use_scheduler` is False."
+            "`--no-use-scheduler` is used."
         ),
     ),
     use_scheduler: bool = typer.Option(
-        True, help="Specifies whether to use a learning rate scheduler."
+        False, help="Specifies whether to use a learning rate scheduler."
     ),
     save_best_model: bool = typer.Option(
         True,
