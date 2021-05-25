@@ -112,6 +112,7 @@ class BaseTrainer:
                 for batch in pbar:
                     batch = self._move_to_device(batch)
                     if phase == "train":
+                        self.optimizer.zero_grad()
                         loss = self.training_step(batch)
                         loss.backward()
                         self.optimizer.step()
@@ -121,7 +122,7 @@ class BaseTrainer:
                         loss = self.validation_step(batch)
                     total_loss += loss.item()
                     pbar.set_postfix({f"{phase}_loss": loss.item()})
-                avg_loss[phase] = total_loss / len(data_loaders[phase].dataset)  # type: ignore  # noqa: E501
+                avg_loss[phase] = total_loss / len(data_loaders[phase])  # type: ignore  # noqa: E501
                 if self.wandb_run:
                     wandb.log({f"{phase}_loss": avg_loss[phase]})
             end_time = time.time()

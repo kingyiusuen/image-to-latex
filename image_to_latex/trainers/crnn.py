@@ -12,7 +12,7 @@ class CRNNTrainer(BaseTrainer):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.criterion = nn.CTCLoss(zero_infinity=True, reduction="sum")
+        self.criterion = nn.CTCLoss(zero_infinity=True)
 
     def training_step(self, batch: Sequence) -> torch.Tensor:
         """Training step."""

@@ -12,8 +12,7 @@ class ResnetTransformerTrainer(BaseTrainer):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.criterion = nn.CrossEntropyLoss(
-            ignore_index=self.tokenizer.pad_index,
-            reduction="sum",
+            ignore_index=self.tokenizer.pad_index
         )
 
     def training_step(self, batch: Sequence) -> torch.Tensor:
