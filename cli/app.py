@@ -29,7 +29,7 @@ def _parse_args(ctx: typer.Context) -> Dict[str, Any]:
         )
     args: Dict[str, Any] = {}
     for i in range(0, len(unknown_args), 2):
-        name = unknown_args[i].split("--")[1].replace("_", "-")
+        name = unknown_args[i].split("--")[1].replace("-", "_")
         value = unknown_args[i + 1]
         args[name] = literal_eval(value)
     return args
@@ -157,16 +157,11 @@ def train(
         all_config.update(model.config())
         all_config.update(trainer.config())
         wandb.config.update(all_config)
-        artifact = wandb.Artifact(name=f"{model_name}", type="model")
+        if save_best_model:
+            wandb.save(Path(TRAINING_LOGS_DIRNAME, f"{model_name}.pth"))
         with tempfile.TemporaryDirectory() as td:
-            if save_best_model:
-                shutil.copyfile(
-                    src=Path(TRAINING_LOGS_DIRNAME, "model.pth"),
-                    dst=Path(td, "model.pth"),
-                )
             trainer.tokenizer.save(Path(td, "token_to_index.json"))
-            artifact.add_dir(td)
-            wandb_run.log_artifact(artifact)
+            wandb.save(Path(td, "token_to_index.json"))
 
 
 @app.command()
@@ -187,26 +182,8 @@ def download_artifacts(
     with open(config_filename, "w") as file:
         json.dump(wandb_run.config, file, indent=4)
     print(f"Configuration file downloaded to {str(config_filename)}.")
-    # Download run command
-    run_command_filename = ARTIFACTS_DIRNAME / "run_command.txt"
-    with open(run_command_filename, "w") as file:
-        file.write(_get_run_command(wandb_run))
-    print(f"Python run command downloaded to {str(run_command_filename)}.")
     # Download model checkpoint
     _download_model_checkpoint(wandb_run, ARTIFACTS_DIRNAME)
-
-
-def _get_run_command(wandb_run: wandb.apis.public.Run) -> str:
-    """Return python run command for input wandb_run.
-
-    Reference:
-    https://github.com/full-stack-deep-learning/fsdl-text-recognizer-2021-labs/
-    """
-    with tempfile.TemporaryDirectory() as tmp_dirname:
-        wandb_file = wandb_run.file("wandb-metadata.json")
-        with wandb_file.download(root=tmp_dirname, replace=True) as file:
-            metadata = json.load(file)
-    return f"python {metadata['program']} " + " ".join(metadata["args"])
 
 
 def _download_model_checkpoint(

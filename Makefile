@@ -6,15 +6,18 @@
 .PHONY: help
 help:
 	@echo "Commands:"
-	@echo "install          : installs requirements."
-	@echo "install-dev      : installs development requirements."
-	@echo "install-test     : installs test requirements."
-	@echo "install-docs     : installs docs requirements."
-	@echo "venv             : sets up the virtual environment for development."
-	@echo "test             : runs all tests."
-	@echo "test             : runs non-training tests."
-	@echo "lint             : runs linting."
-	@echo "clean            : cleans all unecessary files."
+	@echo "install            : installs requirements."
+	@echo "install-dev        : installs development requirements."
+	@echo "install-test       : installs test requirements."
+	@echo "install-docs       : installs docs requirements."
+	@echo "venv               : sets up virtual environment for development."
+	@echo "test               : runs all tests."
+	@echo "test-non-training  : runs non-training tests."
+	@echo "api                : launches FastAPI app."
+	@echo "docker             : builds and runs a docker image."
+	@echo "streamlit          : runs streamlit app."
+	@echo "lint               : runs linting."
+	@echo "clean              : cleans all unnecessary files."
 
 # Installation
 .PHONY: install
@@ -36,7 +39,6 @@ install-docs:
 	python -m pip install -e ".[docs]" --no-cache-dir
 
 # Set up virtual environment
-# Usage: make venv name=venv env=dev
 venv:
 	python3 -m venv ${name}
 	source ${name}/bin/activate && \
@@ -59,6 +61,22 @@ test:
 .PHONY: test-non-training
 test-non-training:
 	pytest -m "not training"
+
+# API
+.PHONY: api
+api:
+	uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload --reload-dir image-to-latex --reload-dir api
+
+# Docker
+.PHONY: docker
+docker:
+	docker build -t image-to-latex:latest -f Dockerfile .
+	docker run -p 8000:8000 --name image-to-latex image-to-latex:latest
+
+# Streamlit
+.PHONY: streamlit
+streamlit:
+	streamlit run streamlit/app.py
 
 # Cleaning
 .PHONY: clean

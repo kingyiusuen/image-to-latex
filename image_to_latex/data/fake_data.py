@@ -21,23 +21,23 @@ class FakeData(BaseDataModule):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.num_samples = self.args.get("num-samples", NUM_SAMPLES)
-        self.image_height = self.args.get("image-height", IMAGE_HEIGHT)
-        self.image_width = self.args.get("image-width", IMAGE_WIDTH)
-        self.num_classes = self.args.get("num-classes", NUM_CLASSES)
-        self.max_seq_len = self.args.get("max-seq-len", MAX_SEQ_LEN)
+        self.num_samples = self.args.get("num_samples", NUM_SAMPLES)
+        self.image_height = self.args.get("image_height", IMAGE_HEIGHT)
+        self.image_width = self.args.get("image_width", IMAGE_WIDTH)
+        self.num_classes = self.args.get("num_classes", NUM_CLASSES)
+        self.max_seq_len = self.args.get("max_seq_len", MAX_SEQ_LEN)
         self.tokenizer = Tokenizer()
 
     def config(self) -> Dict[str, Any]:
         """Returns important configuration for reproducibility."""
         return {
-            "batch-size": self.batch_size,
-            "num-workers": self.num_workers,
-            "num-samples": self.num_samples,
-            "image-height": self.image_height,
-            "image-width": self.image_width,
-            "num-classes": self.num_classes,
-            "max-seq-len": self.max_seq_len,
+            "batch_size": self.batch_size,
+            "num_workers": self.num_workers,
+            "num_samples": self.num_samples,
+            "image_height": self.image_height,
+            "image_width": self.image_width,
+            "num_classes": self.num_classes,
+            "max_seq_len": self.max_seq_len,
         }
 
     def create_datasets(self) -> None:

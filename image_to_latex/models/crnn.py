@@ -1,5 +1,5 @@
 from itertools import groupby
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import torch
 import torch.nn as nn
@@ -46,12 +46,12 @@ class CRNN(BaseModel):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self.conv_dim = self.args.get("conv-dim", CONV_DIM)
-        self.rnn_type = self.args.get("rnn-type", RNN_TYPE).upper()
+        self.conv_dim = self.args.get("conv_dim", CONV_DIM)
+        self.rnn_type = self.args.get("rnn_type", RNN_TYPE).upper()
         assert self.rnn_type in ["RNN", "LSTM", "GRU"]
-        self.rnn_dim = self.args.get("rnn-dim", RNN_DIM)
-        self.rnn_layers = self.args.get("rnn-layers", RNN_LAYERS)
-        self.rnn_dropout = self.args.get("rnn-dropout", RNN_DROPOUT)
+        self.rnn_dim = self.args.get("rnn_dim", RNN_DIM)
+        self.rnn_layers = self.args.get("rnn_layers", RNN_LAYERS)
+        self.rnn_dropout = self.args.get("rnn_dropout", RNN_DROPOUT)
 
         self.cnn = nn.Sequential(
             ConvReLU(1, self.conv_dim, 3, padding=1),
@@ -82,11 +82,11 @@ class CRNN(BaseModel):
     def config(self) -> Dict[str, Any]:
         """Returns important configuration for reproducibility."""
         return {
-            "conv-dim": self.conv_dim,
-            "rnn-type": self.rnn_type,
-            "rnn-dim": self.rnn_dim,
-            "rnn-layers": self.rnn_layers,
-            "rnn-dropout": self.rnn_dropout,
+            "conv_dim": self.conv_dim,
+            "rnn_type": self.rnn_type,
+            "rnn_dim": self.rnn_dim,
+            "rnn_layers": self.rnn_layers,
+            "rnn_dropout": self.rnn_dropout,
         }
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -117,14 +117,9 @@ class CRNN(BaseModel):
         log_probs = torch.log_softmax(logits, dim=1)  # (B, num_classes, S)
         return log_probs
 
-    def predict(
-        self,
-        x: torch.Tensor,
-        max_output_len: Optional[int] = 200,
-    ) -> torch.Tensor:
+    def predict(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
         """Make predictions at inference time."""
-        if max_output_len is None:
-            max_output_len = 200
+        max_output_len = kwargs.get("max_output_len", MAX_OUTPUT_LEN)
 
         log_probs = self(x)
         B = log_probs.shape[0]

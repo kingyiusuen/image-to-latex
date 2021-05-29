@@ -7,7 +7,8 @@ import torch
 
 
 class BeamSearchCandidate:
-    """
+    """A class for storing a candidate sequence in beam search.
+
     Args:
         log_likelihood: Unnormalized log likelihood of the sequence.
         seq: (max_seq_len) with elements in (0, num_classes - 1).
@@ -19,30 +20,30 @@ class BeamSearchCandidate:
         self,
         log_likelihood: float,
         seq: torch.Tensor,
-        current_seq_len: int,
+        max_seq_len: int,
         eos_index: int,
     ) -> None:
         self.log_likelihood = log_likelihood
         self.seq = seq
-        self.current_seq_len = current_seq_len
+        self.max_seq_len = max_seq_len
         self.eos_index = eos_index
 
     def __len__(self) -> int:
-        return self.current_seq_len
+        return len(self.seq)
 
     def has_ended(self) -> bool:
-        return self.seq[len(self) - 1].item() == self.eos_index
+        eos_generated = self.seq[-1].item() == self.eos_index
+        max_len_reached = len(self) == self.max_seq_len
+        return eos_generated | max_len_reached
 
     def extend(self, log_prob: float, index: int) -> BeamSearchCandidate:
-        max_seq_len = len(self.seq)
-        if len(self) == max_seq_len:
+        if len(self) == self.max_seq_len:
             return self
-        log_likelihood = self.log_likelihood + log_prob
-        seq = self.seq
-        seq[len(self)] = index
-        current_seq_len = len(self) + 1
         return BeamSearchCandidate(
-            log_likelihood, seq, current_seq_len, self.eos_index
+            self.log_likelihood + log_prob,
+            torch.cat((self.seq, torch.LongTensor([index]))),
+            self.max_seq_len,
+            self.eos_index,
         )
 
     def score(self) -> float:

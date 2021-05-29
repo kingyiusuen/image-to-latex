@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Union
 
+import torch
 from PIL import Image
 
 
@@ -146,6 +147,8 @@ class Tokenizer:
             inference: If True, break after the first end-of-sequence token,
                 and ignore special tokens.
         """
+        if isinstance(indexed_corpus, torch.Tensor):
+            indexed_corpus = indexed_corpus.tolist()
         corpus = []
         for indexed_sentence in indexed_corpus:
             sentence = []

@@ -182,6 +182,7 @@ class BaseTrainer:
         self.model.to(self.device)
         self.model.eval()
 
+        start_time = time.time()
         pbar = tqdm(test_dataloader, desc="Testing: ", leave=False)
         for batch in pbar:
             batch = self._move_to_device(batch)
@@ -195,13 +196,17 @@ class BaseTrainer:
             )
         bleu = bleu_score(references, hypothesis) * 100
         ed = edit_distance(references, hypothesis) * 100
+        end_time = time.time()
+        mins, secs = compute_time_elapsed(start_time, end_time)
         print(
             "Evaluation Results:\n"
             "====================\n"
             f"BLEU: {bleu:.3f}\n"
             f"Edit Distance: {ed:.3f}\n"
             "====================\n"
+            f"Time: {mins}m {secs}s"
         )
+
         if self.wandb_run:
             wandb.run.summary["bleu"] = bleu  # type: ignore
             wandb.run.summary["edit_distance"] = ed  # type: ignore

@@ -1,5 +1,5 @@
 import math
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Tuple
 
 import torch
 import torch.nn as nn
@@ -64,14 +64,14 @@ class ResnetTransformer(BaseModel):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self.resnet_layers = self.args.get("resnet-layers", RESNET_LAYERS)
+        self.resnet_layers = self.args.get("resnet_layers", RESNET_LAYERS)
         assert 0 <= self.resnet_layers <= 4
-        self.tf_dim = self.args.get("tf-dim", TF_DIM)
-        self.tf_fc_dim = self.args.get("tf-fc-dim", TF_FC_DIM)
-        self.tf_nhead = self.args.get("tf-nhead", TF_NHEAD)
-        self.tf_dropout = self.args.get("tf-dropout", TF_DROPOUT)
-        self.tf_layers = self.args.get("tf-layers", TF_LAYERS)
-        self.max_output_len = self.args.get("max-output-len", MAX_OUTPUT_LEN)
+        self.tf_dim = self.args.get("tf_dim", TF_DIM)
+        self.tf_fc_dim = self.args.get("tf_fc_dim", TF_FC_DIM)
+        self.tf_nhead = self.args.get("tf_nhead", TF_NHEAD)
+        self.tf_dropout = self.args.get("tf_dropout", TF_DROPOUT)
+        self.tf_layers = self.args.get("tf_layers", TF_LAYERS)
+        self.max_output_len = self.args.get("max_output_len", MAX_OUTPUT_LEN)
         self.beam_width = self.args.get("beam_width", BEAM_WIDTH)
 
         # Encoder
@@ -101,18 +101,19 @@ class ResnetTransformer(BaseModel):
         self.fc = nn.Linear(self.tf_dim, self.num_classes)
 
         # It is empirically important to initialize weights properly
-        self.init_weights()
+        if self.training:
+            self.init_weights()
 
     def config(self) -> Dict[str, Any]:
         """Returns important configuration for reproducibility."""
         return {
-            "resnet-layers": self.resnet_layers,
-            "tf-dim": self.tf_dim,
-            "tf-fc-dim": self.tf_fc_dim,
-            "tf-nhead": self.tf_nhead,
-            "tf-dropout": self.tf_dropout,
-            "tf-layers": self.tf_layers,
-            "max-output-len": self.max_output_len,
+            "resnet_layers": self.resnet_layers,
+            "tf_dim": self.tf_dim,
+            "tf_fc_dim": self.tf_fc_dim,
+            "tf_nhead": self.tf_nhead,
+            "tf_dropout": self.tf_dropout,
+            "tf_layers": self.tf_layers,
+            "max_output_len": self.max_output_len,
         }
 
     def init_weights(self) -> None:
@@ -154,7 +155,7 @@ class ResnetTransformer(BaseModel):
         """Encode inputs.
 
         Args:
-            x: (B, _E, _H, _W)
+            x: (B, C, _H, _W)
 
         Returns:
             (Sx, B, E)
@@ -189,16 +190,11 @@ class ResnetTransformer(BaseModel):
         output = self.fc(output)  # (Sy, B, num_classes)
         return output
 
-    def predict(
-        self,
-        x: torch.Tensor,
-        beam_width: int = 1,
-        max_output_len: Optional[int] = None,
-    ) -> torch.Tensor:
+    def predict(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
         """Make predctions at inference time.
 
         Args:
-            x: (B, H, W) images
+            x: (B, C, H, W) images
             beam_width: The number of sequences to store at each step. If
                 smaller than or equal to 1, use greedy search.
             max_output_len: Maximum output length. Have to be smaller than or
@@ -207,18 +203,16 @@ class ResnetTransformer(BaseModel):
         Returns:
             (B, max_output_len) with elements in (0, num_classes - 1).
         """
-        if max_output_len is None:
-            max_output_len = self.max_output_len
-        elif max_output_len > self.max_output_len:
-            raise ValueError(
-                "max_output_len is expected to be smaller than "
-                f"{self.max_output_len}"
-            )
+        max_output_len = kwargs.get("max_output_len", self.max_output_len)
+        beam_width = kwargs.get("beam_width", self.beam_width)
 
         if beam_width <= 1:
             output_indices = self._greedy_search(x, max_output_len)
         else:
-            output_indices = self._beam_search(x, beam_width, max_output_len)
+            output_indices, _ = self._beam_search(
+                x, beam_width, max_output_len
+            )
+
         return output_indices
 
     def _greedy_search(
@@ -226,6 +220,7 @@ class ResnetTransformer(BaseModel):
         x: torch.Tensor,
         max_output_len: int,
     ) -> torch.Tensor:
+        """Select the token with the highest conditional probability."""
         B = x.shape[0]
         S = max_output_len
 
@@ -233,7 +228,7 @@ class ResnetTransformer(BaseModel):
 
         output_indices = (
             torch.full((B, S), self.pad_index).type_as(x).long()
-        )  # (B, S)  # noqa: E501
+        )  # (B, S)
         output_indices[:, 0] = self.sos_index
         for Sy in range(1, S):
             y = output_indices[:, :Sy]  # (B, Sy)
@@ -262,22 +257,23 @@ class ResnetTransformer(BaseModel):
         x: torch.Tensor,
         beam_width: int,
         max_output_len: int,
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, List[float]]:
+        """Select k tokens with the highest conditional probabilities."""
         B = x.shape[0]
         S = max_output_len
         k = beam_width
 
         encoded_x = self.encode(x)  # (Sx, B, E)
         output_indices = torch.full((B, S), self.pad_index).type_as(x).long()
+        log_likelihood = [0.0] * k
 
         # Loop over each sample in the batch
         for i in range(B):
-            initial_seq = torch.full((S,), self.pad_index).type_as(x).long()
-            initial_seq[0] = self.sos_index
+            initial_seq = torch.LongTensor([self.sos_index])
             initial_candidate = BeamSearchCandidate(
                 log_likelihood=0,
                 seq=initial_seq,
-                current_seq_len=1,
+                max_seq_len=self.max_output_len,
                 eos_index=self.eos_index,
             )
             queue = TopKPriorityQueue(k)
@@ -288,29 +284,29 @@ class ResnetTransformer(BaseModel):
                 # top k candidates to save memory.
                 new_queue = TopKPriorityQueue(k)
                 for candidate in queue:
+                    # No need to generate the next token if this candidate
+                    # sequence has already ended (either generated a EOS token
+                    # or reached max seq length)
                     if candidate.has_ended():
                         new_queue.push(candidate)
                         continue
-                    y = candidate.seq[: len(candidate)].unsqueeze(0)  # (1, Sy)
+                    y = candidate.seq.unsqueeze(0)  # (1, Sy)
                     logits = self.decode(
                         y, encoded_x[:, i, :]
                     )  # (Sy, 1, num_classes)
-                    logits = logits.squeeze(1)  # (Sy, num_classes)
-                    log_probs = torch.log_softmax(
-                        logits, dim=1
-                    )  # (Sy, num_classes)
+                    logits = logits[-1, :, :].squeeze()  # (num_classes)
+                    log_probs = torch.log_softmax(logits, dim=0)
                     top_k_log_probs, top_k_indices = log_probs.topk(k)
                     for log_prob, index in zip(top_k_log_probs, top_k_indices):
                         new_candidate = candidate.extend(log_prob, index)
                         new_queue.push(new_candidate)
                 queue = new_queue
-                # Stop the search if all candidates have already generated the
-                # end-of-sequence token
-                all_ended = all(candidate.has_ended() for candidate in queue)
-                if all_ended:
+                # Stop the search if all candidates have already ended
+                if all(candidate.has_ended() for candidate in queue):
                     break
 
             best_candidate = queue.get_largest_item(keep_items=False)
-            output_indices[i, :] = best_candidate.seq
+            output_indices[i, : len(best_candidate)] = best_candidate.seq
+            log_likelihood[i] = best_candidate.log_likelihood
 
-        return output_indices
+        return output_indices, log_likelihood

@@ -43,16 +43,16 @@ class Im2Latex(BaseDataModule):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.tokenizer = Tokenizer()
-        self.image_height = self.args.get("image-height", IMAGE_HEIGHT)
-        self.image_width = self.args.get("image-width", IMAGE_WIDTH)
+        self.image_height = self.args.get("image_height", IMAGE_HEIGHT)
+        self.image_width = self.args.get("image_width", IMAGE_WIDTH)
 
     def config(self) -> Dict[str, Any]:
         """Returns important configuration for reproducibility."""
         return {
-            "batch-size": self.batch_size,
-            "num-workers": self.num_workers,
-            "image-height": self.image_height,
-            "image-width": self.image_width,
+            "batch_size": self.batch_size,
+            "num_workers": self.num_workers,
+            "image_height": self.image_height,
+            "image_width": self.image_width,
         }
 
     def prepare_data(self) -> None:

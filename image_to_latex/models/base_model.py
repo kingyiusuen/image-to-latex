@@ -30,9 +30,5 @@ class BaseModel(nn.Module, ABC):
         """Returns important configuration for reproducibility."""
 
     @abstractmethod
-    def predict(
-        self,
-        x: torch.Tensor,
-        max_output_length: Optional[int] = None,
-    ) -> torch.Tensor:
+    def predict(self, x: torch.Tensor, **kwargs):
         """Make predictions at inference time."""
