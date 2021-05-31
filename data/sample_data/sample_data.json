@@ -18,5 +18,9 @@
     {
         "filename": "1a6a769c1f.png",
         "formula": "\\lbrack x ^ { \\mu } , x ^ { \\nu } ] _ { * } = i \\Theta ^ { \\mu \\nu } ."
+    },
+    {
+        "filename": "1a8b207651.png",
+        "formula": "\\phi _ { i } \\sim e ^ { i \\alpha } \\phi _ { i } \\, ."
     }
 ]

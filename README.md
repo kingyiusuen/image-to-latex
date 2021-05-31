@@ -30,14 +30,14 @@ Experimental results on the im2latex-100k test dataset:
 
 Clone the repository to your computer and position your command line inside the repository folder:
 
-```sh
+```
 git clone https://github.com/kingyiusuen/image-to-latex.git
 cd image-to-latex
 ```
 
 Then, create a virtual environment named `venv` and install required packages:
 
-```sh
+```
 make venv name="venv" env="dev"
 ```
 
@@ -47,7 +47,7 @@ make venv name="venv" env="dev"
 
 An example command to start a training session:
 
-```sh
+```
 image-to-latex train ResnetTransformer \
     --max-epochs 100 \
     --lr 0.001 \
@@ -58,7 +58,7 @@ image-to-latex train ResnetTransformer \
 
 The im2latex-100k dataset will be downloaded automatically. Run the following command to learn the usage and see more available options.
 
-```sh
+```
 image-to-latex train --help
 ```
 
@@ -70,7 +70,7 @@ To track the experiment using [Weights & Biases](https://wandb.ai), add ``--use-
 
 After the training is finished, you can use the following command to download a json file that contains the configurations of the model and the trainer (to reproduce the results), a json file that maps tokens to integers, and a model checkpoint (if `--save-best-model` flag is used):
 
-```sh
+```
 image-to-latex download-artifacts [RUN_PATH]
 ```
 
@@ -94,7 +94,7 @@ The following tools are used to lint the codebase:
 
 Use the following command to run all the checkers and formatters:
 
-```sh
+```
 make lint
 ```
 
@@ -104,13 +104,13 @@ Similar checks are done automatically by the pre-commit framework when a commit 
 
 When there is a pull request or a push to the main branch, a GitHub Actions workflow will be triggered to run unit tests on the codebase. See `.github/workflows/tests.yml` for details. You can also manually execute the tests by using
 
-```sh
+```
 make test
 ```
 
 or, if you want to avoid running tests that involves the trainer (as they may take a slightly longer time than other unit tests),
 
-```sh
+```
 make test-non-training
 ```
 
@@ -120,7 +120,7 @@ make test-non-training
 
 A RESTful API is created to make predictions using a trained Resnet-Transformer model. Use the following command to get the server up and running:
 
-```sh
+```
 make api
 ```
 
@@ -128,7 +128,7 @@ You can explore the API via the generated documentation at http://0.0.0.0:8000/d
 
 To run the Streamlit app, create a new terminal window and use the following command:
 
-```sh
+```
 make streamlit
 ```
 
@@ -136,7 +136,7 @@ The app should be opened in your browser automatically. You can also open it by 
 
 To create a Docker image:
 
-```sh
+```
 make docker
 ```
 

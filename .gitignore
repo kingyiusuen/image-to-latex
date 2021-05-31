@@ -1,5 +1,6 @@
 # Data
 /data/*
+!/data/sample_data
 !/data/metadata.json
 !/data/README.md
 

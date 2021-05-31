@@ -14,10 +14,9 @@ runner = CliRunner()
 @pytest.mark.filterwarnings("ignore::UserWarning")
 def test_train():
     command = (
-        "train CRNN --dataset-name FakeData --no-use-wandb "
-        "--no-save-best-model --no-use-scheduler --num-samples 256 "
-        "--image-height 32 --image-width 128 --num-classes 10 --seq-len 10 "
-        "--conv-dim 16 --max-epochs 2 --max-output-len 30"
+        "train CRNN --dataset-name SampleData "
+        "--no-use-wandb --no-save-best-model --no-use-scheduler "
+        "--conv-dim 16 --max-epochs 2 --max-output-len 30 --batch-size 3"
     ).split()
     result = runner.invoke(app, command)
     assert result.exit_code == 0

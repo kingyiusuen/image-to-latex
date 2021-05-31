@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from image_to_latex.models.resnet_transformer import ResnetTransformer
+from image_to_latex.models import ResnetTransformer
 
 
 class TestResnetTransformer:
@@ -19,9 +19,9 @@ class TestResnetTransformer:
         }
 
     @pytest.fixture()
-    def model(self, tokenizer, model_config):
+    def model(self, sample_data, model_config):
         torch.manual_seed(0)
-        model = ResnetTransformer(tokenizer, model_config)
+        model = ResnetTransformer(sample_data.tokenizer, model_config)
         model.eval()
         return model
 

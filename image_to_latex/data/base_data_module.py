@@ -33,9 +33,9 @@ class BaseDataModule(ABC):
 
         self.transform = transforms.ToTensor()
 
-        self.train_dataset: Dataset
-        self.val_dataset: Dataset
-        self.test_dataset: Dataset
+        self.train_dataset: Optional[Dataset] = None
+        self.val_dataset: Optional[Dataset] = None
+        self.test_dataset: Optional[Dataset] = None
         self.tokenizer: Tokenizer
 
     @classmethod
@@ -53,9 +53,12 @@ class BaseDataModule(ABC):
     def create_datasets(self) -> None:
         """Assign `torch Dataset` objects."""
 
-    def get_dataloader(self, split: str) -> DataLoader:
+    def get_dataloader(self, split: str) -> Optional[DataLoader]:
         """Returns a `torch Dataloader` object."""
         assert split in ["train", "val", "test"]
+        dataset = getattr(self, f"{split}_dataset")
+        if not dataset:
+            return None
         print(f"Preparing {split}_dataloader...")
         dataloader = DataLoader(
             getattr(self, f"{split}_dataset"),

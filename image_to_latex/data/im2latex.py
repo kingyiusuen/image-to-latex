@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import torch
 from PIL import Image
@@ -140,7 +140,7 @@ class Im2Latex(BaseDataModule):
             test_img_names_, test_formulas_, max_seq_len
         )
 
-    def get_dataloader(self, split: str) -> DataLoader:
+    def get_dataloader(self, split: str) -> Optional[DataLoader]:
         """Returns a `torch Dataloader` object."""
         assert split in ["train", "val", "test"]
         print(f"Preparing {split}_dataloader...")

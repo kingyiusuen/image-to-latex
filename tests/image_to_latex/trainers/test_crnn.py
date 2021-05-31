@@ -1,11 +1,11 @@
 import pytest
 
-from image_to_latex.models.crnn import CRNN
-from image_to_latex.trainers.crnn import CRNNTrainer
+from image_to_latex.models import CRNN
+from image_to_latex.trainers import CRNNTrainer
 
 
 @pytest.mark.training
-def test_overfit_one_batch_crnn(tokenizer, train_dataloader):
+def test_overfit_one_batch_crnn(sample_data, train_dataloader):
     config = {
         "conv_dim": 32,
         "rnn_type": "RNN",
@@ -13,10 +13,10 @@ def test_overfit_one_batch_crnn(tokenizer, train_dataloader):
         "rnn_layers": 2,
         "rnn_dropout": 0.3,
     }
-    model = CRNN(tokenizer, config)
+    model = CRNN(sample_data.tokenizer, config)
     trainer = CRNNTrainer(
         model,
-        max_epochs=300,
+        max_epochs=100,
         patience=30,
         monitor="train_loss",
         use_scheduler=False,

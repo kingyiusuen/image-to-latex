@@ -46,8 +46,8 @@ def train(
     dataset_name: str = typer.Option(
         "Im2Latex",
         help=(
-            "{'Im2Latex', 'FakeData'}. Dataset to use. FakeData should only be"
-            "used for debugging."
+            "{'Im2Latex', 'SampleData'}. Dataset to use. SampleData only has "
+            "six samples and should only be used for debugging."
         ),
     ),
     batch_size: int = typer.Option(
@@ -113,7 +113,7 @@ def train(
         image-to-latex train ResnetTransformer --batch-size 64
     """
     assert model_name in ["ResnetTransformer", "CRNN"]
-    assert dataset_name in ["Im2Latex", "FakeData"]
+    assert dataset_name in ["Im2Latex", "SampleData"]
 
     args = _parse_args(ctx)
 
