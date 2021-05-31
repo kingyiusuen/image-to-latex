@@ -43,8 +43,12 @@ def train(
         "ResnetTransformer",
         help="{'ResnetTransformer', 'CRNN'}. Model to train.",
     ),
-    dataset_name: str = typer.Argument(
-        "Im2Latex", help="{'Im2Latex', 'FakeData'}. Dataset to use."
+    dataset_name: str = typer.Option(
+        "Im2Latex",
+        help=(
+            "{'Im2Latex', 'FakeData'}. Dataset to use. FakeData should only be"
+            "used for debugging."
+        ),
     ),
     batch_size: int = typer.Option(
         32, help="The number of samples per batch."
@@ -60,6 +64,13 @@ def train(
         help=(
             "Number of epochs with no improvement before stopping the "
             "training. Use -1 to disable early stopping."
+        ),
+    ),
+    monitor: str = typer.Option(
+        "val_loss",
+        help=(
+            "{'train_loss', 'val_loss'}. Quantity to be monitored for early "
+            "stopping."
         ),
     ),
     lr: float = typer.Option(0.001, help="Learning rate."),
@@ -99,10 +110,7 @@ def train(
     """Train a model using the specified parameters.
 
     Usage:
-        image-to-latex train ResnetTransformer Im2Latex --batch-size 64
-
-    Note:
-        If CRNN is used, `image-height` and `image-width` must be specified.
+        image-to-latex train ResnetTransformer --batch-size 64
     """
     assert model_name in ["ResnetTransformer", "CRNN"]
     assert dataset_name in ["Im2Latex", "FakeData"]
@@ -110,7 +118,9 @@ def train(
     args = _parse_args(ctx)
 
     if model_name == "CRNN":
-        assert ("image-height" in args) and ("image-width" in args)
+        if "image_height" not in args or "image_width" not in args:
+            args["image_height"] = 32
+            args["image_width"] = 128
 
     # Set up dataloaders
     data_class = import_class(f"image_to_latex.data.{dataset_name}")
@@ -141,6 +151,7 @@ def train(
         model=model,
         max_epochs=max_epochs,
         patience=patience,
+        monitor=monitor,
         lr=lr,
         max_lr=max_lr,
         use_scheduler=use_scheduler,
@@ -193,7 +204,7 @@ def _download_model_checkpoint(
     """Download model checkpoint to output_dirname.
 
     Reference:
-    https://github.com/full-stack-deep-learning/fsdl-text-recognizer-2021-labs/
+    https://github.com/full-stack-deep-learning/fsdl-text-recognizer-2021-labs/blob/main/lab9/training/save_best_model.py
     """
     checkpoint_wandb_files = [
         file for file in wandb_run.files() if file.name.endswith(".pth")

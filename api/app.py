@@ -29,10 +29,10 @@ def read_root():
     return response
 
 
-@app.post("/predict", tags=["Prediction"])
-def get_image(file: UploadFile = File(...)):
+@app.post("/predict/{beam_width}", tags=["Prediction"])
+def get_image(beam_width: int, file: UploadFile = File(...)):
     image = Image.open(file.file).convert(mode="L")
-    pred = model.predict(image)  # type: ignore
+    pred = model.predict(image, beam_width=beam_width)  # type: ignore
     response = {
         "message": HTTPStatus.OK.phrase,
         "status-code": HTTPStatus.OK,

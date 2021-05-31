@@ -12,8 +12,7 @@ class TestBeamSearchCandidate:
     def candidate1(self):
         return BeamSearchCandidate(
             log_likelihood=0.2,
-            seq=torch.Tensor([1, 3, 4, 2, 0, 0, 0]),
-            current_seq_len=4,
+            seq=torch.Tensor([1, 3, 4, 2]),
             eos_index=6,
         )
 
@@ -21,8 +20,7 @@ class TestBeamSearchCandidate:
     def candidate2(self):
         return BeamSearchCandidate(
             log_likelihood=0.7,
-            seq=torch.Tensor([1, 3, 4, 2, 6, 0, 0]),
-            current_seq_len=5,
+            seq=torch.Tensor([1, 3, 4, 2, 6]),
             eos_index=6,
         )
 
@@ -30,13 +28,12 @@ class TestBeamSearchCandidate:
         assert len(candidate1) == 4
 
     def test_score(self, candidate1):
-        assert abs(candidate1.score() - 0.066666) < 1e-6
+        assert candidate1.score() == pytest.approx(0.066666, abs=1e-6)
 
     def test_extend(self, candidate1, candidate2):
         new_candidate = candidate1.extend(0.5, 6)
         assert new_candidate.log_likelihood == candidate2.log_likelihood
         assert torch.equal(new_candidate.seq, candidate2.seq)
-        assert new_candidate.current_seq_len == candidate2.current_seq_len
         assert new_candidate.eos_index == candidate2.eos_index
 
     def test_has_ended(self, candidate1, candidate2):

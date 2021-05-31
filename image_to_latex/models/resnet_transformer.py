@@ -1,5 +1,5 @@
 import math
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict
 
 import torch
 import torch.nn as nn
@@ -14,27 +14,17 @@ from image_to_latex.models.beam_search import (
     BeamSearchCandidate,
     TopKPriorityQueue,
 )
+from image_to_latex.utils.misc import find_first
 
 
-RESNET_LAYERS = 2
-TF_DIM = 128
-TF_FC_DIM = 256
-TF_DROPOUT = 0.4
-TF_LAYERS = 2
+RESNET_LAYERS = 4
+TF_DIM = 256
+TF_FC_DIM = 512
+TF_DROPOUT = 0.2
+TF_LAYERS = 4
 TF_NHEAD = 4
 MAX_OUTPUT_LEN = 250
 BEAM_WIDTH = 5
-
-
-def generate_square_subsequent_mask(size: int) -> torch.Tensor:
-    """Generate a triangular (size, size) mask."""
-    mask = (torch.triu(torch.ones(size, size)) == 1).transpose(0, 1)
-    mask = (
-        mask.float()
-        .masked_fill(mask == 0, float("-inf"))
-        .masked_fill(mask == 1, float(0.0))
-    )
-    return mask
 
 
 class ResnetTransformer(BaseModel):
@@ -59,6 +49,9 @@ class ResnetTransformer(BaseModel):
         dec_pos_encoder: 1D positional encoding for the decoder.
         transformer_decoder: Transformer decoder.
         fc: Fully connected layer. The output size must be num_classes.
+
+    Reference:
+    https://github.com/full-stack-deep-learning/fsdl-text-recognizer-2021-labs/blob/main/lab9/text_recognizer/models/resnet_transformer.py
     """
 
     def __init__(self, *args, **kwargs) -> None:
@@ -107,6 +100,7 @@ class ResnetTransformer(BaseModel):
     def config(self) -> Dict[str, Any]:
         """Returns important configuration for reproducibility."""
         return {
+            "model_name": "ResnetTransformer",
             "resnet_layers": self.resnet_layers,
             "tf_dim": self.tf_dim,
             "tf_fc_dim": self.tf_fc_dim,
@@ -209,9 +203,7 @@ class ResnetTransformer(BaseModel):
         if beam_width <= 1:
             output_indices = self._greedy_search(x, max_output_len)
         else:
-            output_indices, _ = self._beam_search(
-                x, beam_width, max_output_len
-            )
+            output_indices = self._beam_search(x, beam_width, max_output_len)
 
         return output_indices
 
@@ -226,10 +218,10 @@ class ResnetTransformer(BaseModel):
 
         encoded_x = self.encode(x)  # (Sx, B, E)
 
-        output_indices = (
-            torch.full((B, S), self.pad_index).type_as(x).long()
-        )  # (B, S)
+        output_indices = torch.full((B, S), self.pad_index).type_as(x).long()
         output_indices[:, 0] = self.sos_index
+        has_ended = torch.full((B,), False)
+
         for Sy in range(1, S):
             y = output_indices[:, :Sy]  # (B, Sy)
             logits = self.decode(y, encoded_x)  # (Sy, B, num_classes)
@@ -237,18 +229,17 @@ class ResnetTransformer(BaseModel):
             output_indices[:, Sy] = output[-1:]  # Set the last output token
 
             # Early stopping of prediction loop to speed up prediction
-            current_indices = output_indices[:, Sy]
-            is_ended = current_indices == self.eos_index
-            is_padded = current_indices == self.pad_index
-            if (is_ended | is_padded).all():
+            has_ended |= (output_indices[:, Sy] == self.eos_index).type_as(
+                has_ended
+            )
+            if torch.all(has_ended):
                 break
 
         # Set all tokens after end token to be padding
-        for Sy in range(1, S):
-            previous_indices = output_indices[:, Sy - 1]
-            is_ended = previous_indices == self.eos_index
-            is_padded = previous_indices == self.pad_index
-            output_indices[(is_ended | is_padded), Sy] = self.pad_index
+        eos_positions = find_first(output_indices, self.eos_index)
+        for i in range(B):
+            j = int(eos_positions[i].item()) + 1
+            output_indices[i, j:] = self.pad_index
 
         return output_indices
 
@@ -257,7 +248,7 @@ class ResnetTransformer(BaseModel):
         x: torch.Tensor,
         beam_width: int,
         max_output_len: int,
-    ) -> Tuple[torch.Tensor, List[float]]:
+    ) -> torch.Tensor:
         """Select k tokens with the highest conditional probabilities."""
         B = x.shape[0]
         S = max_output_len
@@ -265,28 +256,25 @@ class ResnetTransformer(BaseModel):
 
         encoded_x = self.encode(x)  # (Sx, B, E)
         output_indices = torch.full((B, S), self.pad_index).type_as(x).long()
-        log_likelihood = [0.0] * k
+        initial_seq = torch.Tensor([self.sos_index]).type_as(x).long()
+        initial_candidate = BeamSearchCandidate(
+            log_likelihood=0,
+            seq=initial_seq,
+            eos_index=self.eos_index,
+        )
 
         # Loop over each sample in the batch
         for i in range(B):
-            initial_seq = torch.LongTensor([self.sos_index])
-            initial_candidate = BeamSearchCandidate(
-                log_likelihood=0,
-                seq=initial_seq,
-                max_seq_len=self.max_output_len,
-                eos_index=self.eos_index,
-            )
             queue = TopKPriorityQueue(k)
             queue.push(initial_candidate)
 
-            while True:
+            for _ in range(1, S):
                 # Create a fixed-size priority queue (min heap). Only keep the
                 # top k candidates to save memory.
                 new_queue = TopKPriorityQueue(k)
                 for candidate in queue:
                     # No need to generate the next token if this candidate
-                    # sequence has already ended (either generated a EOS token
-                    # or reached max seq length)
+                    # sequence has already ended
                     if candidate.has_ended():
                         new_queue.push(candidate)
                         continue
@@ -307,6 +295,16 @@ class ResnetTransformer(BaseModel):
 
             best_candidate = queue.get_largest_item(keep_items=False)
             output_indices[i, : len(best_candidate)] = best_candidate.seq
-            log_likelihood[i] = best_candidate.log_likelihood
 
-        return output_indices, log_likelihood
+        return output_indices
+
+
+def generate_square_subsequent_mask(size: int) -> torch.Tensor:
+    """Generate a triangular (size, size) mask."""
+    mask = (torch.triu(torch.ones(size, size)) == 1).transpose(0, 1)
+    mask = (
+        mask.float()
+        .masked_fill(mask == 0, float("-inf"))
+        .masked_fill(mask == 1, float(0.0))
+    )
+    return mask

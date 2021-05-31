@@ -30,14 +30,14 @@ class Im2Latex(BaseDataModule):
     """Data processing for the Im2Latex-100K dataset.
 
     Attributes:
-        batch_size:
-        num_workers:
+        batch_size: The number of samples per batch.
+        num_workers: The number of subprocesses to use for data loading.
         tokenizer: A tokenizer object.
         image_height: Height of resized image.
         image_width: Width of resized image.
-        train_dataset:
-        val_dataset:
-        test_dataset:
+        train_dataset: Train dataset.
+        val_dataset: Validation dataset.
+        test_dataset: Test dataset.
     """
 
     def __init__(self, *args, **kwargs) -> None:

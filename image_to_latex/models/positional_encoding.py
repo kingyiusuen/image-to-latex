@@ -8,6 +8,9 @@ class PositionalEncoding2D(nn.Module):
     """2-D positional encodings for the feature maps produced by the encoder.
 
     Following https://arxiv.org/abs/2103.06450 by Sumeet Singh.
+
+    Reference:
+    https://github.com/full-stack-deep-learning/fsdl-text-recognizer-2021-labs/blob/main/lab9/text_recognizer/models/transformer_util.py
     """
 
     def __init__(

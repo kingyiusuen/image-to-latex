@@ -9,7 +9,6 @@ help:
 	@echo "install            : installs requirements."
 	@echo "install-dev        : installs development requirements."
 	@echo "install-test       : installs test requirements."
-	@echo "install-docs       : installs docs requirements."
 	@echo "venv               : sets up virtual environment for development."
 	@echo "test               : runs all tests."
 	@echo "test-non-training  : runs non-training tests."
@@ -33,10 +32,6 @@ install-dev:
 .PHONY: install-test
 install-test:
 	python -m pip install -e ".[test]" --no-cache-dir
-
-.PHONY: install-docs
-install-docs:
-	python -m pip install -e ".[docs]" --no-cache-dir
 
 # Set up virtual environment
 venv:

@@ -82,6 +82,7 @@ class CRNN(BaseModel):
     def config(self) -> Dict[str, Any]:
         """Returns important configuration for reproducibility."""
         return {
+            "model_name": "CRNN",
             "conv_dim": self.conv_dim,
             "rnn_type": self.rnn_type,
             "rnn_dim": self.rnn_dim,

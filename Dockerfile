@@ -12,7 +12,7 @@ RUN apt-get update \
 
 # Copy only the relevant directories
 COPY image_to_latex image_to_latex
-COPY app app
+COPY api api
 COPY artifacts artifacts
 
 # Export ports

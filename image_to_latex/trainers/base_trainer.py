@@ -26,6 +26,7 @@ class BaseTrainer:
         max_epochs: Maximum number of epochs to run.
         patience: Number of epochs with no improvement before stopping the
             training. Use -1 to disable early stopping.
+        monitor: Quantity to be monitored for early stopping.
         lr: Learning rate.
         max_lr: Maximum learning rate to use in one-cycle learning rate
             scheduler. Use -1 to to run learning rate range test. Ignored if
@@ -52,6 +53,7 @@ class BaseTrainer:
         model: BaseModel,
         max_epochs: int = 100,
         patience: int = 10,
+        monitor: str = "val_loss",
         lr: float = 0.001,
         max_lr: float = -1,
         use_scheduler: bool = True,
@@ -61,6 +63,7 @@ class BaseTrainer:
         self.model = model
         self.max_epochs = max_epochs
         self.patience = patience
+        self.monitor = monitor
         self.lr = lr
         self.max_lr = max_lr
         self.use_scheduler = use_scheduler
@@ -69,7 +72,7 @@ class BaseTrainer:
 
         self.tokenizer = self.model.tokenizer
         self.start_epoch = 1
-        self.best_val_loss = float("inf")
+        self.best_monitor_val = float("inf")
         self.no_improve_count = 0
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
@@ -83,68 +86,43 @@ class BaseTrainer:
     def config(self) -> Dict[str, Any]:
         """Returns important configuration for reproducibility."""
         return {
-            "max-epochs": self.max_epochs,
+            "max_epochs": self.max_epochs,
             "patience": self.patience,
             "lr": self.lr,
-            "max-lr": self.max_lr,
-            "use-scheduler": self.use_scheduler,
-            "save-best-model": self.save_best_model,
+            "max_lr": self.max_lr,
+            "use_scheduler": self.use_scheduler,
+            "save_best_model": self.save_best_model,
         }
 
     def fit(
         self,
         train_dataloader: DataLoader,
-        val_dataloader: DataLoader,
-    ) -> None:
+        val_dataloader: Optional[DataLoader] = None,
+    ) -> Dict:
         """Specify what happens during training."""
         self._configure_optimizer(train_dataloader)
-
-        data_loaders = {"train": train_dataloader, "val": val_dataloader}
         self.model.to(self.device)
 
+        loss = {"train_loss": float("inf"), "val_loss": float("inf")}
+
         for epoch in range(self.start_epoch, self.max_epochs + 1):
-            avg_loss = {"train": 0.0, "val": 0.0}
             start_time = time.time()
-            for phase in ["train", "val"]:
-                total_loss = 0.0
-                if phase == "train":
-                    self.model.train()
-                else:
-                    self.model.eval()
-                pbar = tqdm(data_loaders[phase], desc=phase, leave=False)
-                for batch in pbar:
-                    batch = self._move_to_device(batch)
-                    if phase == "train":
-                        self.optimizer.zero_grad()
-                        loss = self.training_step(batch)
-                        loss.backward()
-                        self.optimizer.step()
-                        if self.use_scheduler:
-                            self.scheduler.step()
-                    else:
-                        loss = self.validation_step(batch)
-                    total_loss += loss.item()
-                    pbar.set_postfix({f"{phase}_loss": loss.item()})
-                avg_loss[phase] = total_loss / len(data_loaders[phase])  # type: ignore  # noqa: E501
-                if self.wandb_run:
-                    wandb.log(
-                        {f"{phase}_loss": avg_loss[phase], "epoch": epoch}
-                    )
+            loss["train_loss"] = self.training_epoch(train_dataloader, epoch)
+            loss["val_loss"] = self.validation_epoch(val_dataloader, epoch)
             end_time = time.time()
             mins, secs = compute_time_elapsed(start_time, end_time)
 
             # Print training progress
             width = len(str(self.max_epochs))
-            print(
-                f"Epoch {epoch:{width}d}/{self.max_epochs} | "
-                f"Train loss: {avg_loss['train']:.3f} | "
-                f"Val loss: {avg_loss['val']:.3f} | "
-                f"Time: {mins}m {secs}s"
-            )
+            print(f"Epoch {epoch:{width}d}/{self.max_epochs} |", end=" ")
+            print(f"Train loss: {loss['train_loss']:.3f} |", end=" ")
+            if val_dataloader is not None:
+                print(f"Val loss: {loss['val_loss']:.3f} |", end=" ")
+            print(f"Time: {mins}m {secs}s")
 
             # Check if the model stops improving
             # Save checkpoint if necessary
-            if self._early_stopping(avg_loss["val"]):
+            if self._early_stopping(loss[self.monitor]):
                 print(
                     f"Training is terminated because validation loss has "
                     f"stopped decreasing for {self.patience} epochs.\n"
@@ -152,7 +130,52 @@ class BaseTrainer:
                 break
 
         if self.wandb_run:
-            wandb.run.summary["epoch"] = min(epoch, self.max_epochs)  # type: ignore  # noqa: E501
+            wandb.run.summary["epoch"] = epoch  # type: ignore
+
+        return {
+            "epoch": epoch,
+            "best_monitor_val": self.best_monitor_val,
+        }
+
+    def training_epoch(
+        self, train_dataloader: DataLoader, epoch: int
+    ) -> float:
+        total_loss = 0.0
+        self.model.train()
+        pbar = tqdm(train_dataloader, desc="Training", leave=False)
+        for batch in pbar:
+            batch = self._move_to_device(batch)
+            self.optimizer.zero_grad()
+            loss = self.training_step(batch)
+            loss.backward()
+            self.optimizer.step()
+            if self.use_scheduler:
+                self.scheduler.step()
+            total_loss += loss.item()
+            pbar.set_postfix({"train_loss": loss.item()})
+        avg_train_loss = total_loss / len(train_dataloader)
+        if self.wandb_run:
+            wandb.log({"train_loss": avg_train_loss, "epoch": epoch})
+        return avg_train_loss
+
+    @torch.no_grad()
+    def validation_epoch(
+        self, val_dataloader: Optional[DataLoader], epoch: int
+    ) -> Union[float, None]:
+        if not val_dataloader:
+            return None
+        total_loss = 0.0
+        self.model.eval()
+        pbar = tqdm(val_dataloader, desc="Validating", leave=False)
+        for batch in pbar:
+            batch = self._move_to_device(batch)
+            loss = self.validation_step(batch)
+            total_loss += loss.item()
+            pbar.set_postfix({"val_loss": loss.item()})
+        avg_val_loss = total_loss / len(val_dataloader)
+        if self.wandb_run:
+            wandb.log({"val_loss": avg_val_loss, "epoch": epoch})
+        return avg_val_loss
 
     def training_step(self, batch: Sequence):
         """Training step."""
@@ -161,7 +184,6 @@ class BaseTrainer:
         loss = self.criterion(logits, targets)
         return loss
 
-    @torch.no_grad()
     def validation_step(self, batch: Sequence):
         """Validation step."""
         imgs, targets = batch
@@ -242,10 +264,10 @@ class BaseTrainer:
             for x in batch
         ]
 
-    def _early_stopping(self, current_val_loss: float) -> bool:
+    def _early_stopping(self, curr_monitor_val: float) -> bool:
         """Returns whether the training should stop."""
-        if current_val_loss < self.best_val_loss:
-            self.best_val_loss = current_val_loss
+        if curr_monitor_val < self.best_monitor_val:
+            self.best_monitor_val = curr_monitor_val
             self.no_improve_count = 0
             self._save_checkpoint()
         else:

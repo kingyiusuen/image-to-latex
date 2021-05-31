@@ -11,8 +11,7 @@ class BeamSearchCandidate:
 
     Args:
         log_likelihood: Unnormalized log likelihood of the sequence.
-        seq: (max_seq_len) with elements in (0, num_classes - 1).
-        seq_len: Length of the sequence, not counting the padding token.
+        seq: A sequence with elements in (0, num_classes - 1).
         eos_index: Index of end-of-sequence token.
     """
 
@@ -20,29 +19,23 @@ class BeamSearchCandidate:
         self,
         log_likelihood: float,
         seq: torch.Tensor,
-        max_seq_len: int,
         eos_index: int,
     ) -> None:
         self.log_likelihood = log_likelihood
         self.seq = seq
-        self.max_seq_len = max_seq_len
         self.eos_index = eos_index
 
     def __len__(self) -> int:
         return len(self.seq)
 
     def has_ended(self) -> bool:
-        eos_generated = self.seq[-1].item() == self.eos_index
-        max_len_reached = len(self) == self.max_seq_len
-        return eos_generated | max_len_reached
+        return self.seq[-1].item() == self.eos_index
 
     def extend(self, log_prob: float, index: int) -> BeamSearchCandidate:
-        if len(self) == self.max_seq_len:
-            return self
+        new_index = torch.Tensor([index]).type_as(self.seq).long()
         return BeamSearchCandidate(
             self.log_likelihood + log_prob,
-            torch.cat((self.seq, torch.LongTensor([index]))),
-            self.max_seq_len,
+            torch.cat((self.seq, new_index)),
             self.eos_index,
         )
 

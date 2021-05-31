@@ -26,13 +26,6 @@ dev_packages = [
     "pre-commit==2.13.0",
 ]
 
-docs_packages = [
-    "mkdocs==1.1.2",
-    "mkdocs-macros-plugin==0.5.5",
-    "mkdocs-material==7.1.5",
-    "mkdocstrings==0.15.1",
-]
-
 setup(
     name="image-to-latex",
     version="0.1",
@@ -59,12 +52,11 @@ setup(
     install_requires=[required_packages],
     extras_require={
         "test": test_packages,
-        "dev": test_packages + dev_packages + docs_packages,
-        "docs": docs_packages,
+        "dev": test_packages + dev_packages,
     },
     entry_points={
         "console_scripts": [
-            "image-to-latex = app.cli:app",
+            "image-to-latex = cli.app:app",
         ],
     },
 )

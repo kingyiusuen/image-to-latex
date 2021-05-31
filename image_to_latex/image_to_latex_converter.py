@@ -29,14 +29,18 @@ class ImageToLatexConverter:
         self.model.eval()
         self.transform = transforms.ToTensor()
 
-    def predict(self, image: Union[str, Path, Image.Image]) -> str:
+    def predict(
+        self,
+        image: Union[str, Path, Image.Image],
+        beam_width: int,
+    ) -> str:
         if not isinstance(image, Image.Image):
             image_pil = Image.open(image).convert(mode="L")
         else:
             image_pil = image
         image_tensor = self.transform(image_pil).unsqueeze(0)
         y_pred = self.model.predict(
-            image_tensor, beam_width=5, max_output_len=150
+            image_tensor, beam_width=beam_width, max_output_len=150
         )
         tokens = self.tokenizer.unindex(y_pred, inference=True)[0]
         formula = " ".join(tokens)

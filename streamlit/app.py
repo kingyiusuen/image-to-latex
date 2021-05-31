@@ -39,7 +39,8 @@ if st.button("Convert"):
         files = {"file": uploaded_file.getvalue()}
         with st.spinner("Wait for it..."):
             response = requests.post(
-                "http://0.0.0.0:8000/predict", files=files
+                f"http://0.0.0.0:8000/predict/{beam_width}",
+                files=files,
             )
         st.header("Output")
         latex_code = response.json()["data"]["pred"]

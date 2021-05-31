@@ -9,11 +9,11 @@ class TestFakeData:
     def fake_data(self):
         np.random.seed(32)
         config = {
-            "num-samples": 20,
-            "image-height": 16,
-            "image-width": 16,
-            "num-classes": 4,
-            "max-seq-len": 8,
+            "num_samples": 20,
+            "image_height": 16,
+            "image_width": 16,
+            "num_classes": 4,
+            "max_seq_len": 8,
         }
         return FakeData(0, 0, config)
 

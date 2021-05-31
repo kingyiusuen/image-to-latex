@@ -27,7 +27,6 @@ class CRNNTrainer(BaseTrainer):
         )
         return loss
 
-    @torch.no_grad()
     def validation_step(self, batch: Sequence) -> torch.Tensor:
         """Validation step."""
         imgs, targets = batch

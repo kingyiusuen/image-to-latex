@@ -20,7 +20,6 @@ htmlcov
 .DS_Store
 *.egg-info
 venv
-notebooks
 legacy
 logs
 artifacts

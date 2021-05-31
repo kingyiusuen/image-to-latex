@@ -22,7 +22,6 @@ class ResnetTransformerTrainer(BaseTrainer):
         loss = self.criterion(logits, targets[:, 1:])
         return loss
 
-    @torch.no_grad()
     def validation_step(self, batch: Sequence) -> torch.Tensor:
         """Validation step."""
         imgs, targets = batch
