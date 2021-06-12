@@ -163,9 +163,10 @@ def train(
         wandb.config.update(all_config)
         if save_best_model:
             wandb.save(str(Path(TRAINING_LOGS_DIRNAME, "best_model.pth")))
-        with tempfile.TemporaryDirectory() as td:
-            trainer.tokenizer.save(Path(td, "token_to_index.json"))
-            wandb.save(str(Path(td, "token_to_index.json")))
+        trainer.tokenizer.save(
+            Path(TRAINING_LOGS_DIRNAME, "token_to_index.json")
+        )
+        wandb.save(str(Path(TRAINING_LOGS_DIRNAME, "token_to_index.json")))
 
 
 @app.command()

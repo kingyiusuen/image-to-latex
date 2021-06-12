@@ -291,7 +291,7 @@ class Trainer:
         if not self.save_best_model:
             return
         checkpoint = self.model.state_dict()
-        torch.save(checkpoint, TRAINING_LOGS_DIRNAME / "model.pth")
+        torch.save(checkpoint, TRAINING_LOGS_DIRNAME / "best_model.pth")
 
     def _find_optimal_lr(self, dataloader: DataLoader) -> Optional[float]:
         """Returns suggested learning rate."""
