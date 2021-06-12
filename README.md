@@ -19,9 +19,9 @@ My model shows comparable results with the model developed by [Deng et al. (2016
 | Model              | # Params | Training time | BLEU     | Edit Distance |
 |--------------------|----------|---------------|----------|---------------|
 | Deng et al. (2016) | 9.48m    | 20 hours      | 87.73    | 87.60         |
-| Mine               | 3.74m    | 30 mins       | 84.65    | 85.61         |
+| Mine               | 3.74m    | 30 mins       | 82.60    | 82.62         |
 
-Deng's model was trained on a 12GB NVidia Titan X GPU, while I trained my model on a Tesla V100 SMX2. A comparison of the two GPUs can be found [here](https://www.gpuzoo.com/Compare/NVIDIA_Tesla_V100_SMX2__vs__NVIDIA_Titan_V/). They also used  beam search with a beam width of 5 during evaluation, while I only used greedy search.
+Deng's model was trained on a 12GB NVidia Titan X GPU, while I trained my model on a Tesla V100 SMX2. A comparison of the two GPUs can be found [here](https://www.gpuzoo.com/Compare/NVIDIA_Tesla_V100_SMX2__vs__NVIDIA_Titan_V/). They also used  beam search with a beam width of 5 during evaluation, while I only used greedy search. The chart for training/validation loss, the hyperparameters and the model checkpoint can be found in [Weights & Biases](https://wandb.ai/kingyiusuen/image-to-latex/runs/2pgs4rdi/).
 
 ## Setup
 
@@ -76,7 +76,7 @@ After the training is finished, you can use the following command to download a 
 image-to-latex download-artifacts [RUN_PATH]
 ```
 
-The run path should be in the format of `<entity>/<project>/<run_id>`. To find the run path for a particular experiment run, go to the Overview tab in the dashboard.
+The run path should be in the format of `<entity>/<project>/<run_id>`. To find the run path for a particular experiment run, go to the Overview tab in the dashboard. For example, the run id for [this experiemnt]((https://wandb.ai/kingyiusuen/image-to-latex/runs/2pgs4rdi/)) is `kingyiusuen/image-to-latex/2pgs4rdi`.
 
 ### Training in Google Colab
 
@@ -115,8 +115,6 @@ or, if you want to avoid running tests that involves the trainer (as they may ta
 ```
 make test-non-training
 ```
-
-
 
 ## Deployment
 
