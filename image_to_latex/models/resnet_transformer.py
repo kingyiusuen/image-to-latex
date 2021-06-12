@@ -1,19 +1,16 @@
 import math
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
 import torchvision.models
 
-from image_to_latex.models import (
-    BaseModel,
-    PositionalEncoding1D,
-    PositionalEncoding2D,
-)
+from image_to_latex.models import PositionalEncoding1D, PositionalEncoding2D
 from image_to_latex.models.beam_search import (
     BeamSearchCandidate,
     TopKPriorityQueue,
 )
+from image_to_latex.utils.data import Tokenizer
 from image_to_latex.utils.misc import find_first
 
 
@@ -24,10 +21,10 @@ TF_DROPOUT = 0.2
 TF_LAYERS = 4
 TF_NHEAD = 4
 MAX_OUTPUT_LEN = 250
-BEAM_WIDTH = 5
+BEAM_WIDTH = 3
 
 
-class ResnetTransformer(BaseModel):
+class ResnetTransformer(nn.Module):
     """Resnet as encoder and transformer as decoder.
 
     Attributes:
@@ -54,8 +51,20 @@ class ResnetTransformer(BaseModel):
     https://github.com/full-stack-deep-learning/fsdl-text-recognizer-2021-labs/blob/main/lab9/text_recognizer/models/resnet_transformer.py
     """
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        tokenizer: Tokenizer,
+        args: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__()
+        self.tokenizer = tokenizer
+        self.args = args if args else {}
+
+        self.blk_index = self.tokenizer.blk_index
+        self.sos_index = self.tokenizer.sos_index
+        self.eos_index = self.tokenizer.eos_index
+        self.pad_index = self.tokenizer.pad_index
+        self.num_classes = len(self.tokenizer)
 
         self.resnet_layers = self.args.get("resnet_layers", RESNET_LAYERS)
         assert 0 <= self.resnet_layers <= 4

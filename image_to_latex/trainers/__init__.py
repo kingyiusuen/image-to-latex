@@ -1,3 +1,1 @@
-from image_to_latex.trainers.base_trainer import BaseTrainer
-from image_to_latex.trainers.crnn import CRNNTrainer
-from image_to_latex.trainers.resnet_transformer import ResnetTransformerTrainer
+from image_to_latex.trainers.trainer import Trainer

@@ -1,11 +1,11 @@
 import pytest
 
 from image_to_latex.models import ResnetTransformer
-from image_to_latex.trainers import ResnetTransformerTrainer
+from image_to_latex.trainers import Trainer
 
 
 @pytest.mark.training
-def test_overfit_one_batch_resnet_transformer(sample_data, train_dataloader):
+def overfit_one_batch(sample_data, train_dataloader):
     config = {
         "resnet_layers": 2,
         "tf_dim": 128,
@@ -16,7 +16,7 @@ def test_overfit_one_batch_resnet_transformer(sample_data, train_dataloader):
         "max_output_len": 250,
     }
     model = ResnetTransformer(sample_data.tokenizer, config)
-    trainer = ResnetTransformerTrainer(
+    trainer = Trainer(
         model,
         max_epochs=100,
         patience=30,

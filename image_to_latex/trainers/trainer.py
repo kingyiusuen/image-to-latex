@@ -7,10 +7,13 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from wandb.sdk.lib.disabled import RunDisabled
+from wandb.sdk.wandb_run import Run
 
 import wandb
-from image_to_latex.models.base_model import BaseModel
+from image_to_latex.models import ResnetTransformer
 from image_to_latex.trainers.lr_finder import LRFinder_
+from image_to_latex.utils.data import Tokenizer
 from image_to_latex.utils.metrics import bleu_score, edit_distance
 from image_to_latex.utils.misc import compute_time_elapsed
 
@@ -18,7 +21,7 @@ from image_to_latex.utils.misc import compute_time_elapsed
 TRAINING_LOGS_DIRNAME = Path(__file__).resolve().parents[2] / "logs"
 
 
-class BaseTrainer:
+class Trainer:
     """Specify every aspect of training.
 
     Args:
@@ -50,7 +53,7 @@ class BaseTrainer:
 
     def __init__(
         self,
-        model: BaseModel,
+        model: ResnetTransformer,
         max_epochs: int = 100,
         patience: int = 10,
         monitor: str = "val_loss",
@@ -58,7 +61,7 @@ class BaseTrainer:
         max_lr: float = -1,
         use_scheduler: bool = True,
         save_best_model: bool = True,
-        wandb_run: Optional[wandb.sdk.wandb_run.Run] = None,
+        wandb_run: Optional[Union[Run, RunDisabled]] = None,
     ) -> None:
         self.model = model
         self.max_epochs = max_epochs
@@ -70,7 +73,10 @@ class BaseTrainer:
         self.save_best_model = save_best_model
         self.wandb_run = wandb_run
 
-        self.tokenizer = self.model.tokenizer
+        self.tokenizer: Tokenizer = self.model.tokenizer
+        self.criterion = nn.CrossEntropyLoss(
+            ignore_index=self.tokenizer.pad_index
+        )
         self.start_epoch = 1
         self.best_monitor_val = float("inf")
         self.no_improve_count = 0
@@ -79,7 +85,6 @@ class BaseTrainer:
         )
         TRAINING_LOGS_DIRNAME.mkdir(parents=True, exist_ok=True)
 
-        self.criterion: Union[nn.CrossEntropyLoss, nn.CTCLoss]
         self.optimizer: optim.Optimizer
         self.scheduler: optim.lr_scheduler._LRScheduler
 
@@ -177,18 +182,18 @@ class BaseTrainer:
             wandb.log({"val_loss": avg_val_loss, "epoch": epoch})
         return avg_val_loss
 
-    def training_step(self, batch: Sequence):
+    def training_step(self, batch: Sequence) -> torch.Tensor:
         """Training step."""
         imgs, targets = batch
-        logits = self.model(imgs, targets)
-        loss = self.criterion(logits, targets)
+        logits = self.model(imgs, targets[:, :-1])
+        loss = self.criterion(logits, targets[:, 1:])
         return loss
 
-    def validation_step(self, batch: Sequence):
+    def validation_step(self, batch: Sequence) -> torch.Tensor:
         """Validation step."""
         imgs, targets = batch
-        logits = self.model(imgs, targets)
-        loss = self.criterion(logits, targets)
+        logits = self.model(imgs, targets[:, :-1])
+        loss = self.criterion(logits, targets[:, 1:])
         return loss
 
     @torch.no_grad()

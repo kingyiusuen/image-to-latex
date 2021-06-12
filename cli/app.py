@@ -9,6 +9,8 @@ import typer
 from torchinfo import summary
 
 import wandb
+from image_to_latex.models import ResnetTransformer
+from image_to_latex.trainers import Trainer
 from image_to_latex.utils.misc import import_class
 
 
@@ -39,10 +41,6 @@ def _parse_args(ctx: typer.Context) -> Dict[str, Any]:
     context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
 )
 def train(
-    model_name: str = typer.Argument(
-        "ResnetTransformer",
-        help="{'ResnetTransformer', 'CRNN'}. Model to train.",
-    ),
     dataset_name: str = typer.Option(
         "Im2Latex",
         help=(
@@ -110,17 +108,11 @@ def train(
     """Train a model using the specified parameters.
 
     Usage:
-        image-to-latex train ResnetTransformer --batch-size 64
+        image-to-latex train --batch-size 64
     """
-    assert model_name in ["ResnetTransformer", "CRNN"]
     assert dataset_name in ["Im2Latex", "SampleData"]
 
     args = _parse_args(ctx)
-
-    if model_name == "CRNN":
-        if "image_height" not in args or "image_width" not in args:
-            args["image_height"] = 32
-            args["image_width"] = 128
 
     # Set up dataloaders
     data_class = import_class(f"image_to_latex.data.{dataset_name}")
@@ -132,8 +124,7 @@ def train(
     test_dataloader = data_module.get_dataloader("test")
 
     # Set up the model
-    model_class = import_class(f"image_to_latex.models.{model_name}")
-    model = model_class(data_module.tokenizer, args)
+    model = ResnetTransformer(data_module.tokenizer, args)
     print("\nModel summary:")
     summary(model)
 
@@ -144,10 +135,7 @@ def train(
         wandb_run = None
 
     # Start training
-    trainer_class = import_class(
-        f"image_to_latex.trainers.{model_name}Trainer"
-    )
-    trainer = trainer_class(
+    trainer = Trainer(
         model=model,
         max_epochs=max_epochs,
         patience=patience,
@@ -169,10 +157,10 @@ def train(
         all_config.update(trainer.config())
         wandb.config.update(all_config)
         if save_best_model:
-            wandb.save(Path(TRAINING_LOGS_DIRNAME, f"{model_name}.pth"))
+            wandb.save(str(Path(TRAINING_LOGS_DIRNAME, "best_model.pth")))
         with tempfile.TemporaryDirectory() as td:
             trainer.tokenizer.save(Path(td, "token_to_index.json"))
-            wandb.save(Path(td, "token_to_index.json"))
+            wandb.save(str(Path(td, "token_to_index.json")))
 
 
 @app.command()

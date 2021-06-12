@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Union
 
 import torch
-from PIL import Image
 
 
 class Tokenizer:
@@ -166,32 +165,3 @@ class Tokenizer:
         """Save token-to-index mapping to a json file."""
         with open(filename, "w") as f:
             json.dump(self.token_to_index, f, indent=4)
-
-
-def resize_image(image: Image, width: int, height: int) -> Image:
-    """Resize an image while keeping its aspect ratio in a white background.
-
-    Reference:
-    https://stackoverflow.com/a/52969463
-    """
-    ratio_w = width / image.width
-    ratio_h = height / image.height
-    if ratio_w < ratio_h:
-        resized_width = width
-        resized_height = round(ratio_w * image.height)
-    else:
-        resized_width = round(ratio_h * image.width)
-        resized_height = height
-    resized_image = image.resize(
-        (resized_width, resized_height),
-        resample=Image.ANTIALIAS,
-    )
-    # Create a white background
-    background = Image.new("L", (width, height), 255)
-    # Paste in the center of the background
-    offset = (
-        round((width - resized_width) / 2),
-        round((height - resized_height) / 2),
-    )
-    background.paste(resized_image, offset)
-    return background

@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, Dataset
 from image_to_latex.data.base_data_module import BaseDataModule
 from image_to_latex.data.base_dataset import BaseDataset
 from image_to_latex.data.same_size_batch_sampler import SameSizeBatchSampler
-from image_to_latex.utils.data import Tokenizer, resize_image
+from image_to_latex.utils.data import Tokenizer
 from image_to_latex.utils.misc import (
     download_url,
     extract_tar_file,
@@ -21,9 +21,6 @@ from image_to_latex.utils.misc import (
 DATA_DIRNAME = BaseDataModule.data_dirname()
 FORMULA_FILENAME = DATA_DIRNAME / "im2latex_formulas.norm.lst"
 VOCAB_FILENAME = DATA_DIRNAME / "vocab.json"
-
-IMAGE_HEIGHT = None
-IMAGE_WIDTH = None
 
 
 class Im2Latex(BaseDataModule):
@@ -43,16 +40,12 @@ class Im2Latex(BaseDataModule):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.tokenizer = Tokenizer()
-        self.image_height = self.args.get("image_height", IMAGE_HEIGHT)
-        self.image_width = self.args.get("image_width", IMAGE_WIDTH)
 
     def config(self) -> Dict[str, Any]:
         """Returns important configuration for reproducibility."""
         return {
             "batch_size": self.batch_size,
             "num_workers": self.num_workers,
-            "image_height": self.image_height,
-            "image_width": self.image_width,
         }
 
     def prepare_data(self) -> None:
@@ -89,10 +82,6 @@ class Im2Latex(BaseDataModule):
             images = []
             for img_name in img_names:
                 image = Image.open(_img_filename(img_name)).convert("L")
-                if self.image_height and self.image_width:
-                    image = resize_image(
-                        image, self.image_width, self.image_height
-                    )
                 images.append(image)
             targets = self.tokenizer.index(
                 formulas, add_sos=True, add_eos=True, pad_to=max_seq_len
@@ -145,23 +134,15 @@ class Im2Latex(BaseDataModule):
         assert split in ["train", "val", "test"]
         print(f"Preparing {split}_dataloader...")
         dataset = getattr(self, f"{split}_dataset")
-        if self.image_height and self.image_width:
-            dataloader = DataLoader(
-                dataset,
-                batch_size=self.batch_size,
-                num_workers=self.num_workers,
-                pin_memory=torch.cuda.is_available(),
-            )
-        else:
-            batch_sampler = SameSizeBatchSampler(
-                dataset, batch_size=self.batch_size, shuffle=(split == "train")
-            )
-            dataloader = DataLoader(
-                dataset,
-                batch_sampler=batch_sampler,
-                num_workers=self.num_workers,
-                pin_memory=torch.cuda.is_available(),
-            )
+        batch_sampler = SameSizeBatchSampler(
+            dataset, batch_size=self.batch_size, shuffle=(split == "train")
+        )
+        dataloader = DataLoader(
+            dataset,
+            batch_sampler=batch_sampler,
+            num_workers=self.num_workers,
+            pin_memory=torch.cuda.is_available(),
+        )
         return dataloader
 
 
