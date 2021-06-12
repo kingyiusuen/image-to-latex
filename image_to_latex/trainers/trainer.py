@@ -34,6 +34,8 @@ class Trainer:
         max_lr: Maximum learning rate to use in one-cycle learning rate
             scheduler. Use -1 to to run learning rate range test. Ignored if
             `use_scheduler` is False.
+        beam_width: Number of best alternatives to consider at each decoding
+            step.
         use_scheduler: Specifies whether to use learning rate scheduler or not.
         save_best_model: Specifies whether to save the model that has the best
             validation loss.
@@ -59,6 +61,7 @@ class Trainer:
         monitor: str = "val_loss",
         lr: float = 0.001,
         max_lr: float = -1,
+        beam_width: int = 1,
         use_scheduler: bool = True,
         save_best_model: bool = True,
         wandb_run: Optional[Union[Run, RunDisabled]] = None,
@@ -69,6 +72,7 @@ class Trainer:
         self.monitor = monitor
         self.lr = lr
         self.max_lr = max_lr
+        self.beam_width = beam_width
         self.use_scheduler = use_scheduler
         self.save_best_model = save_best_model
         self.wandb_run = wandb_run
@@ -95,6 +99,7 @@ class Trainer:
             "patience": self.patience,
             "lr": self.lr,
             "max_lr": self.max_lr,
+            "beam_width": self.beam_width,
             "use_scheduler": self.use_scheduler,
             "save_best_model": self.save_best_model,
         }
@@ -214,7 +219,7 @@ class Trainer:
         for batch in pbar:
             batch = self._move_to_device(batch)
             imgs, targets = batch
-            preds = self.model.predict(imgs)
+            preds = self.model.predict(imgs, beam_width=self.beam_width)
             references += self.tokenizer.unindex(
                 targets.tolist(), inference=True
             )

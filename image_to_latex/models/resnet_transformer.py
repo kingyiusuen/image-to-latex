@@ -21,7 +21,7 @@ TF_DROPOUT = 0.2
 TF_LAYERS = 4
 TF_NHEAD = 4
 MAX_OUTPUT_LEN = 250
-BEAM_WIDTH = 3
+BEAM_WIDTH = 1
 
 
 class ResnetTransformer(nn.Module):
@@ -193,7 +193,12 @@ class ResnetTransformer(nn.Module):
         output = self.fc(output)  # (Sy, B, num_classes)
         return output
 
-    def predict(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
+    def predict(
+        self,
+        x: torch.Tensor,
+        max_output_len: Optional[int] = None,
+        beam_width: Optional[int] = None,
+    ) -> torch.Tensor:
         """Make predctions at inference time.
 
         Args:
@@ -206,8 +211,10 @@ class ResnetTransformer(nn.Module):
         Returns:
             (B, max_output_len) with elements in (0, num_classes - 1).
         """
-        max_output_len = kwargs.get("max_output_len", self.max_output_len)
-        beam_width = kwargs.get("beam_width", self.beam_width)
+        if max_output_len is None:
+            max_output_len = self.max_output_len
+        if beam_width is None:
+            beam_width = self.beam_width
 
         if beam_width <= 1:
             output_indices = self._greedy_search(x, max_output_len)

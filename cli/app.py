@@ -80,6 +80,10 @@ def train(
             "`--no-use-scheduler` is used."
         ),
     ),
+    beam_width: int = typer.Option(
+        1,
+        help="Number of best alternatives to consider at each decoding step.",
+    ),
     use_scheduler: bool = typer.Option(
         False, help="Specifies whether to use a learning rate scheduler."
     ),
@@ -142,6 +146,7 @@ def train(
         monitor=monitor,
         lr=lr,
         max_lr=max_lr,
+        beam_width=beam_width,
         use_scheduler=use_scheduler,
         save_best_model=save_best_model,
         wandb_run=wandb_run,
