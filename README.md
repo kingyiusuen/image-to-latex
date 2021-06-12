@@ -10,21 +10,18 @@
 
 An application that maps an image of an equation to the corresponding latex code.
 
-Two models are implememnted:
+The model I implemented uses an encoder-decoder architecture (Resnet-18 as encoder and a Transformer as decoder) with cross-entropy loss [(Singh & Karayev, 2021)](https://arxiv.org/abs/2103.06450).
 
-- a Convolutional Recurrent Neural Network (CRNN) with CTC loss [(Shi, Bai, & Yao, 2015)](https://arxiv.org/abs/1507.05717) as a baseline;
-- an encoder-decoder model (Resnet-18 as encoder and a Transformer as decoder) with cross-entropy loss [(Singh & Karayev, 2021)](https://arxiv.org/abs/2103.06450).
+The model was trained with the [im2latex-100K](http://lstm.seas.harvard.edu/latex/data/) dataset which has already been pre-processed by Deng et al. (2016) from Harvard. (The pre-processing turns out to be a huge limitation. See [below](#limitations).)
 
-The models are trained with the [im2latex-100K](http://lstm.seas.harvard.edu/latex/data/) dataset which has already been pre-processed by [some researchers at Harvard](https://arxiv.org/abs/1609.04938v1). (The pre-processing turns out to be a huge limitation. See [below](#limitations).)
+My model shows comparable results with the model developed by [Deng et al. (2016)](https://arxiv.org/pdf/1609.04938v1.pdf) on the test set, despite having a much fewer number of parameters and requiring a much shorter training time:
 
+| Model              | # Params | Training time | BLEU     | Edit Distance |
+|--------------------|----------|---------------|----------|---------------|
+| Deng et al. (2016) | 9.48m    | 20 hours      | 87.73    | 87.60         |
+| Mine               | 3.74m    | 30 mins       | 84.65    | 85.61         |
 
-Experimental results on the im2latex-100k test dataset:
-
-| Model             | BLEU        | Edit Distance |
-|-------------------| ----------- | ------------- |
-| CRNN              |             |               |
-| Resnet-Transformer|             |               |
-
+Deng's model was trained on a 12GB NVidia Titan X GPU, while I trained my model on a Tesla V100 SMX2. A comparison of the two GPUs can be found [here](https://www.gpuzoo.com/Compare/NVIDIA_Tesla_V100_SMX2__vs__NVIDIA_Titan_V/). They also used  beam search with a beam width of 5 during evaluation, while I only used greedy search.
 
 ## Setup
 
@@ -48,12 +45,17 @@ make venv name="venv" env="dev"
 An example command to start a training session:
 
 ```
-image-to-latex train ResnetTransformer \
-    --max-epochs 100 \
+image-to-latex train \
+    --max-epochs 30 \
     --lr 0.001 \
     --patience 10 \
     --save-best-model \
-    --use-wandb
+    --use-wandb \
+    --resnet-layers 3 \
+    --tf-dim 128 \
+    --tf-fc-dim 256 \
+    --tf-layers 4 \
+    --tf-dropout 0.2
 ```
 
 The im2latex-100k dataset will be downloaded automatically. Run the following command to learn the usage and see more available options.
@@ -62,7 +64,7 @@ The im2latex-100k dataset will be downloaded automatically. Run the following co
 image-to-latex train --help
 ```
 
-There are model-dependent options that are not shown in the help message. To learn more about this, check out what arguments are being parsed from the input parameter `config` in `crnn.py` and `resnet_transformer.py` under `image_to_latex/models`. Note that the words in the arguments should be separated by dash instead of underscore when you put them in the command line.
+There are model-dependent options that are not shown in the help message. To learn more about this, check out what arguments are being parsed from the input parameter `config` in `resnet_transformer.py` under `image_to_latex/models`. Note that the words in the arguments should be separated by dash instead of underscore when you put them in the command line.
 
 ### Experiment Tracking using Weights & Biases
 
@@ -78,7 +80,7 @@ The run path should be in the format of `<entity>/<project>/<run_id>`. To find t
 
 ### Training in Google Colab
 
-If you want to train the model in Google Colab, you can follow the template in `notebooks/colab_training.ipynb`. Note that there is limited memory in Colab, so you may want to adjust the hyperparameters and train a smaller model. See the model summary at the beginning of the training to find out the number of parameters in each layer. You can also consider upgrading to Colab Pro to get more memory.
+If you want to train the model in Google Colab, you can follow the template in [notebooks/colab_training.ipynb](https://colab.research.google.com/github/kingyiusuen/image-to-latex/blob/main/notebooks/colab_training.ipynb). Note that there is limited memory in Colab, so you may want to adjust the hyperparameters and train a smaller model. See the model summary at the beginning of the training to find out the number of parameters in each layer. You can also consider upgrading to Colab Pro to get more memory.
 
 ## Testing and Continuous Integration
 
@@ -143,6 +145,8 @@ make docker
 ## Limitations
 
 Although the trained model can achieve a reasonable performance on the test dataset, it performs poorly if the image quality, padding, or font size is different from the images in the dataset. This phenomenon has also been observed by others who have attempted the same problem using the same dataset (e.g., [this project](https://wandb.ai/site/articles/image-to-latex), [this issue](https://github.com/harvardnlp/im2markup/issues/12) and [this issue](https://github.com/harvardnlp/im2markup/issues/21)). To address this, future works should include image augmentation in their pre-processing pipeline to increase the diversity of the samples.
+
+For the sake of time, I did not use beam search or perform any hyperparameter tuning. I only used the first three layers of Resnet, because I ran out of memory on Google Colab when I tried to use the full model.
 
 ## Acknowledgement
 
