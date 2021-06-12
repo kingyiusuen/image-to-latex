@@ -208,7 +208,7 @@ def _download_model_checkpoint(
         return None
 
     wandb_file = checkpoint_wandb_files[0]
-    output_filename = output_dirname / "model.pth"
+    output_filename = output_dirname / "best_model.pth"
     with tempfile.TemporaryDirectory() as tmp_dirname:
         wandb_file.download(root=tmp_dirname, replace=True)
         checkpoint_filename = f"{tmp_dirname}/{wandb_file.name}"

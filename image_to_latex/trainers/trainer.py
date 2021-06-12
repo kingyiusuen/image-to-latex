@@ -205,7 +205,7 @@ class Trainer:
     def test(self, test_dataloader: DataLoader) -> None:
         """Specify what happens during testing."""
         if self.save_best_model:
-            checkpoint = torch.load(TRAINING_LOGS_DIRNAME / "model.pth")
+            checkpoint = torch.load(TRAINING_LOGS_DIRNAME / "best_model.pth")
             self.model.load_state_dict(checkpoint)  # type: ignore
 
         references: List[List[str]] = []
