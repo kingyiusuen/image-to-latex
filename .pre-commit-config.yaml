@@ -43,7 +43,3 @@ repos:
         args: ["clean"]
         language: system
         pass_filenames: false
-
-ci:
-    autofix_commit_msg: "[pre-commit.ci] auto fixes from pre-commit.com hooks"
-    autoupdate_commit_msg: "[pre-commit.ci] pre-commit-config update"
