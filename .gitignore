@@ -1,8 +1,8 @@
 # Data
-/data/*
-!/data/sample_data
-!/data/metadata.json
-!/data/README.md
+/data
+
+# Hydra
+/outputs
 
 # Editors
 .vscode
@@ -12,6 +12,12 @@ __pycache__
 .ipynb_checkpoints
 .mypy_cache
 
+# Virtual environment
+venv
+
+# Weights & Biases
+wandb
+
 # pytest
 .coverage*
 .pytest_cache
@@ -20,8 +26,4 @@ htmlcov
 # Misc
 .DS_Store
 *.egg-info
-venv
-legacy
-logs
 artifacts
-wandb

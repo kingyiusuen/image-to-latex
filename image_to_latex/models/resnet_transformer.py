@@ -1,145 +1,73 @@
 import math
-from typing import Any, Dict, Optional
+from typing import Union
 
 import torch
 import torch.nn as nn
 import torchvision.models
+from torch import Tensor
 
-from image_to_latex.models import PositionalEncoding1D, PositionalEncoding2D
-from image_to_latex.models.beam_search import (
-    BeamSearchCandidate,
-    TopKPriorityQueue,
-)
-from image_to_latex.utils.data import Tokenizer
-from image_to_latex.utils.misc import find_first
-
-
-RESNET_LAYERS = 4
-TF_DIM = 256
-TF_FC_DIM = 512
-TF_DROPOUT = 0.2
-TF_LAYERS = 4
-TF_NHEAD = 4
-MAX_OUTPUT_LEN = 250
-BEAM_WIDTH = 1
+from ..data.utils import Tokenizer
+from .positional_encoding import PositionalEncoding1D, PositionalEncoding2D
 
 
 class ResnetTransformer(nn.Module):
-    """Resnet as encoder and transformer as decoder.
-
-    Attributes:
-        num_classes: Vocabulary size
-        tf_dim: This serves multiple roles:
-            - the output dimension of the encoder,
-            - the input dimension of the decoder,
-            - the dimension of feedforward networks in the transformer,
-            - the dimension of label embeddings, and
-            - the dimension of positional encoding.
-        max_output_len: Maximum output length during inference.
-        resnet: ResNet-18 model. Pretrained weights are not used because the
-            input domain here is quite different from the original problem.
-        encoder_projection: A convoluational layer with kernerl size of 1. It
-            aims to reduce the number of channels.
-        enc_pos_encoder: 2D positional encoding for the encoder.
-        embedding: Embedding layer for the targets.
-        y_mask: Mask to prevent attention to read tokens in future positions.
-        dec_pos_encoder: 1D positional encoding for the decoder.
-        transformer_decoder: Transformer decoder.
-        fc: Fully connected layer. The output size must be num_classes.
-
-    Reference:
-    https://github.com/full-stack-deep-learning/fsdl-text-recognizer-2021-labs/blob/main/lab9/text_recognizer/models/resnet_transformer.py
-    """
-
     def __init__(
         self,
         tokenizer: Tokenizer,
-        args: Optional[Dict[str, Any]] = None,
+        d_model: int,
+        dim_feedforward: int,
+        nhead: int,
+        dropout: float,
+        num_decoder_layers: int,
+        max_output_len: int,
     ) -> None:
         super().__init__()
-        self.tokenizer = tokenizer
-        self.args = args if args else {}
+        self.d_model = d_model
+        self.max_output_len = max_output_len
 
-        self.blk_index = self.tokenizer.blk_index
-        self.sos_index = self.tokenizer.sos_index
-        self.eos_index = self.tokenizer.eos_index
-        self.pad_index = self.tokenizer.pad_index
-        self.num_classes = len(self.tokenizer)
-
-        self.resnet_layers = self.args.get("resnet_layers", RESNET_LAYERS)
-        assert 0 <= self.resnet_layers <= 4
-        self.tf_dim = self.args.get("tf_dim", TF_DIM)
-        self.tf_fc_dim = self.args.get("tf_fc_dim", TF_FC_DIM)
-        self.tf_nhead = self.args.get("tf_nhead", TF_NHEAD)
-        self.tf_dropout = self.args.get("tf_dropout", TF_DROPOUT)
-        self.tf_layers = self.args.get("tf_layers", TF_LAYERS)
-        self.max_output_len = self.args.get("max_output_len", MAX_OUTPUT_LEN)
-        self.beam_width = self.args.get("beam_width", BEAM_WIDTH)
+        self.sos_index = tokenizer.sos_index
+        self.eos_index = tokenizer.eos_index
+        self.pad_index = tokenizer.pad_index
+        num_classes = len(tokenizer)
 
         # Encoder
-        resnet = torchvision.models.resnet18(pretrained=False)
-        layers = [resnet.conv1, resnet.bn1, resnet.relu, resnet.maxpool]
-        for i in range(1, self.resnet_layers + 1):
-            layers.append(getattr(resnet, f"layer{i}"))
-        self.resnet = nn.Sequential(*layers)
-        # Get the output dimension of the last block of the last layer
-        # layer1: 64, layer2: 128, layer3: 256, layer4: 512
-        resnet_dim = layers[-1][-1].conv2.out_channels
-        self.encoder_projection = nn.Conv2d(resnet_dim, self.tf_dim, 1)
-        self.enc_pos_encoder = PositionalEncoding2D(self.tf_dim)
+        self.resnet = torchvision.models.resnet18(pretrained=False)
+        del self.resnet.avgpool
+        del self.resnet.fc
+        self.bottleneck = nn.Conv2d(512, self.d_model, 1)
+        self.image_positional_encoder = PositionalEncoding2D(self.d_model)
 
         # Decoder
-        self.embedding = nn.Embedding(self.num_classes, self.tf_dim)
+        self.embedding = nn.Embedding(num_classes, self.d_model)
         self.y_mask = generate_square_subsequent_mask(self.max_output_len)
-        self.dec_pos_encoder = PositionalEncoding1D(
-            d_model=self.tf_dim, max_len=self.max_output_len
-        )
-        self.transformer_decoder = nn.TransformerDecoder(
-            decoder_layer=nn.TransformerDecoderLayer(
-                self.tf_dim, self.tf_nhead, self.tf_fc_dim, self.tf_dropout
-            ),
-            num_layers=self.tf_layers,
-        )
-        self.fc = nn.Linear(self.tf_dim, self.num_classes)
+        self.word_positional_encoder = PositionalEncoding1D(self.d_model, max_len=self.max_output_len)
+        transformer_decoder_layer = nn.TransformerDecoderLayer(self.d_model, nhead, dim_feedforward, dropout)
+        self.transformer_decoder = nn.TransformerDecoder(transformer_decoder_layer, num_decoder_layers)
+        self.fc = nn.Linear(self.d_model, num_classes)
 
         # It is empirically important to initialize weights properly
         if self.training:
-            self.init_weights()
+            self._init_weights()
 
-    def config(self) -> Dict[str, Any]:
-        """Returns important configuration for reproducibility."""
-        return {
-            "model_name": "ResnetTransformer",
-            "resnet_layers": self.resnet_layers,
-            "tf_dim": self.tf_dim,
-            "tf_fc_dim": self.tf_fc_dim,
-            "tf_nhead": self.tf_nhead,
-            "tf_dropout": self.tf_dropout,
-            "tf_layers": self.tf_layers,
-            "max_output_len": self.max_output_len,
-        }
-
-    def init_weights(self) -> None:
+    def _init_weights(self) -> None:
         """Initialize weights."""
-        initrange = 0.1
-        self.embedding.weight.data.uniform_(-initrange, initrange)
+        init_range = 0.1
+        self.embedding.weight.data.uniform_(-init_range, init_range)
         self.fc.bias.data.zero_()
-        self.fc.weight.data.uniform_(-initrange, initrange)
+        self.fc.weight.data.uniform_(-init_range, init_range)
 
         nn.init.kaiming_normal_(
-            self.encoder_projection.weight.data,
+            self.bottleneck.weight.data,
             a=0,
             mode="fan_out",
             nonlinearity="relu",
         )
-        if self.encoder_projection.bias is not None:
-            _, fan_out = nn.init._calculate_fan_in_and_fan_out(
-                self.encoder_projection.weight.data
-            )
+        if self.bottleneck.bias is not None:
+            _, fan_out = nn.init._calculate_fan_in_and_fan_out(self.bottleneck.weight.data)
             bound = 1 / math.sqrt(fan_out)
-            nn.init.normal_(self.encoder_projection.bias, -bound, bound)
+            nn.init.normal_(self.bottleneck.bias, -bound, bound)
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor, y: Tensor) -> Tensor:
         """Forward pass.
 
         Args:
@@ -154,7 +82,7 @@ class ResnetTransformer(nn.Module):
         output = output.permute(1, 2, 0)  # (B, num_classes, Sy)
         return output
 
-    def encode(self, x: torch.Tensor) -> torch.Tensor:
+    def encode(self, x: Tensor) -> Tensor:
         """Encode inputs.
 
         Args:
@@ -163,18 +91,24 @@ class ResnetTransformer(nn.Module):
         Returns:
             (Sx, B, E)
         """
-        _E = x.shape[1]
         # Resnet expects 3 channels but training images are in gray scale
-        if _E == 1:
+        if x.shape[1] == 1:
             x = x.repeat(1, 3, 1, 1)
-        x = self.resnet(x)  # (B, RESNET_DIM, H, W); H = _H // 32, W = _W // 32
-        x = self.encoder_projection(x)  # (B, E, H, W)
-        x = self.enc_pos_encoder(x)  # (B, E, H, W)
-        x = torch.flatten(x, start_dim=2)  # (B, E, H * W)
+        x = self.resnet.conv1(x)
+        x = self.resnet.bn1(x)
+        x = self.resnet.relu(x)
+        x = self.resnet.maxpool(x)
+        x = self.resnet.layer1(x)
+        x = self.resnet.layer2(x)
+        x = self.resnet.layer3(x)
+        x = self.resnet.layer4(x)  # (B, RESNET_DIM, H, W); H = _H // 32, W = _W // 32
+        x = self.bottleneck(x)  # (B, E, H, W)
+        x = self.image_positional_encoder(x)  # (B, E, H, W)
+        x = x.flatten(start_dim=2)  # (B, E, H * W)
         x = x.permute(2, 0, 1)  # (Sx, B, E); Sx = H * W
         return x
 
-    def decode(self, y: torch.Tensor, encoded_x: torch.Tensor) -> torch.Tensor:
+    def decode(self, y: Tensor, encoded_x: Tensor) -> Tensor:
         """Decode encoded inputs with teacher-forcing.
 
         Args:
@@ -185,52 +119,25 @@ class ResnetTransformer(nn.Module):
             (Sy, B, num_classes) logits
         """
         y = y.permute(1, 0)  # (Sy, B)
-        y = self.embedding(y) * math.sqrt(self.tf_dim)  # (Sy, B, E)
-        y = self.dec_pos_encoder(y)  # (Sy, B, E)
+        y = self.embedding(y) * math.sqrt(self.d_model)  # (Sy, B, E)
+        y = self.word_positional_encoder(y)  # (Sy, B, E)
         Sy = y.shape[0]
         y_mask = self.y_mask[:Sy, :Sy].type_as(encoded_x)  # (Sy, Sy)
         output = self.transformer_decoder(y, encoded_x, y_mask)  # (Sy, B, E)
         output = self.fc(output)  # (Sy, B, num_classes)
         return output
 
-    def predict(
-        self,
-        x: torch.Tensor,
-        max_output_len: Optional[int] = None,
-        beam_width: Optional[int] = None,
-    ) -> torch.Tensor:
+    def predict(self, x: Tensor) -> Tensor:
         """Make predctions at inference time.
 
         Args:
-            x: (B, C, H, W) images
-            beam_width: The number of sequences to store at each step. If
-                smaller than or equal to 1, use greedy search.
-            max_output_len: Maximum output length. Have to be smaller than or
-                equal to the `max_len` in positional encoding.
+            x: (B, C, H, W). Input images.
 
         Returns:
             (B, max_output_len) with elements in (0, num_classes - 1).
         """
-        if max_output_len is None:
-            max_output_len = self.max_output_len
-        if beam_width is None:
-            beam_width = self.beam_width
-
-        if beam_width <= 1:
-            output_indices = self._greedy_search(x, max_output_len)
-        else:
-            output_indices = self._beam_search(x, beam_width, max_output_len)
-
-        return output_indices
-
-    def _greedy_search(
-        self,
-        x: torch.Tensor,
-        max_output_len: int,
-    ) -> torch.Tensor:
-        """Select the token with the highest conditional probability."""
         B = x.shape[0]
-        S = max_output_len
+        S = self.max_output_len
 
         encoded_x = self.encode(x)  # (Sx, B, E)
 
@@ -241,13 +148,12 @@ class ResnetTransformer(nn.Module):
         for Sy in range(1, S):
             y = output_indices[:, :Sy]  # (B, Sy)
             logits = self.decode(y, encoded_x)  # (Sy, B, num_classes)
+            # Select the token with the highest conditional probability
             output = torch.argmax(logits, dim=-1)  # (Sy, B)
             output_indices[:, Sy] = output[-1:]  # Set the last output token
 
             # Early stopping of prediction loop to speed up prediction
-            has_ended |= (output_indices[:, Sy] == self.eos_index).type_as(
-                has_ended
-            )
+            has_ended |= (output_indices[:, Sy] == self.eos_index).type_as(has_ended)
             if torch.all(has_ended):
                 break
 
@@ -259,68 +165,37 @@ class ResnetTransformer(nn.Module):
 
         return output_indices
 
-    def _beam_search(
-        self,
-        x: torch.Tensor,
-        beam_width: int,
-        max_output_len: int,
-    ) -> torch.Tensor:
-        """Select k tokens with the highest conditional probabilities."""
-        B = x.shape[0]
-        S = max_output_len
-        k = beam_width
 
-        encoded_x = self.encode(x)  # (Sx, B, E)
-        output_indices = torch.full((B, S), self.pad_index).type_as(x).long()
-        initial_seq = torch.Tensor([self.sos_index]).type_as(x).long()
-        initial_candidate = BeamSearchCandidate(
-            log_likelihood=0,
-            seq=initial_seq,
-            eos_index=self.eos_index,
-        )
-
-        # Loop over each sample in the batch
-        for i in range(B):
-            queue = TopKPriorityQueue(k)
-            queue.push(initial_candidate)
-
-            for _ in range(1, S):
-                # Create a fixed-size priority queue (min heap). Only keep the
-                # top k candidates to save memory.
-                new_queue = TopKPriorityQueue(k)
-                for candidate in queue:
-                    # No need to generate the next token if this candidate
-                    # sequence has already ended
-                    if candidate.has_ended():
-                        new_queue.push(candidate)
-                        continue
-                    y = candidate.seq.unsqueeze(0)  # (1, Sy)
-                    logits = self.decode(
-                        y, encoded_x[:, i, :]
-                    )  # (Sy, 1, num_classes)
-                    logits = logits[-1, :, :].squeeze()  # (num_classes)
-                    log_probs = torch.log_softmax(logits, dim=0)
-                    top_k_log_probs, top_k_indices = log_probs.topk(k)
-                    for log_prob, index in zip(top_k_log_probs, top_k_indices):
-                        new_candidate = candidate.extend(log_prob, index)
-                        new_queue.push(new_candidate)
-                queue = new_queue
-                # Stop the search if all candidates have already ended
-                if all(candidate.has_ended() for candidate in queue):
-                    break
-
-            best_candidate = queue.get_largest_item(keep_items=False)
-            output_indices[i, : len(best_candidate)] = best_candidate.seq
-
-        return output_indices
-
-
-def generate_square_subsequent_mask(size: int) -> torch.Tensor:
+def generate_square_subsequent_mask(size: int) -> Tensor:
     """Generate a triangular (size, size) mask."""
     mask = (torch.triu(torch.ones(size, size)) == 1).transpose(0, 1)
-    mask = (
-        mask.float()
-        .masked_fill(mask == 0, float("-inf"))
-        .masked_fill(mask == 1, float(0.0))
-    )
+    mask = mask.float().masked_fill(mask == 0, float("-inf")).masked_fill(mask == 1, float(0.0))
     return mask
+
+
+def find_first(x: Tensor, element: Union[int, float], dim: int = 1) -> Tensor:
+    """Find the first occurence of element in x along a given dimension.
+
+    Args:
+        x: The input tensor to be searched.
+        element: The number to look for.
+        dim: The dimension to reduce.
+
+    Returns:
+        Indices of the first occurence of the element in x. If not found, return the
+        length of x along dim.
+
+    Usage:
+        >>> first_element(Tensor([[1, 2, 3], [2, 3, 3], [1, 1, 1]]), 3)
+        tensor([2, 1, 3])
+
+    Reference:
+        https://discuss.pytorch.org/t/first-nonzero-index/24769/9
+
+        I fixed an edge case where the element we are looking for is at index 0. The
+        original algorithm will return the length of x instead of 0.
+    """
+    mask = x == element
+    found, indices = ((mask.cumsum(dim) == 1) & mask).max(dim)
+    indices[(~found) & (indices == 0)] = x.shape[dim]
+    return indices

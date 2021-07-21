@@ -1,3 +1,0 @@
-# Im2Latex-100K Dataset
-
-The dataset includes ~100k images of math formulas and their corresponding Latex markup code. This version of dataset has already been preproccesed (cropped, downsampled and padded to facilitate batching) by the authors in [Image-to-Markup Generation with Coarse-to-Fine Attention](http://arxiv.org/pdf/1609.04938v1.pdf). The preprocessing steps can be found in their [github repository](https://github.com/harvardnlp/im2markup).
