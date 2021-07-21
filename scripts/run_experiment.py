@@ -14,10 +14,9 @@ from image_to_latex.lit_models import LitResNetTransformer
 @hydra.main(config_path="../conf", config_name="config")
 def main(cfg: DictConfig):
     datamodule = Im2Latex(**cfg.data)
-    datamodule.prepare_data()
     datamodule.setup()
 
-    lit_model = LitResNetTransformer(**cfg.lit_model, tokenizer=datamodule.tokenizer)
+    lit_model = LitResNetTransformer(**cfg.lit_model)
 
     callbacks: List[Callback] = []
     if cfg.callbacks.model_checkpoint:

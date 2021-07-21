@@ -6,35 +6,42 @@ import torch.nn as nn
 import torchvision.models
 from torch import Tensor
 
-from ..data.utils import Tokenizer
 from .positional_encoding import PositionalEncoding1D, PositionalEncoding2D
 
 
 class ResNetTransformer(nn.Module):
     def __init__(
         self,
-        tokenizer: Tokenizer,
         d_model: int,
         dim_feedforward: int,
         nhead: int,
         dropout: float,
         num_decoder_layers: int,
         max_output_len: int,
+        sos_index: int,
+        eos_index: int,
+        pad_index: int,
+        num_classes: int,
     ) -> None:
         super().__init__()
         self.d_model = d_model
         self.max_output_len = max_output_len + 2
-
-        self.sos_index = tokenizer.sos_index
-        self.eos_index = tokenizer.eos_index
-        self.pad_index = tokenizer.pad_index
-        num_classes = len(tokenizer)
+        self.sos_index = sos_index
+        self.eos_index = eos_index
+        self.pad_index = pad_index
 
         # Encoder
-        self.resnet = torchvision.models.resnet18(pretrained=False)
-        del self.resnet.avgpool
-        del self.resnet.fc
-        self.bottleneck = nn.Conv2d(512, self.d_model, 1)
+        resnet = torchvision.models.resnet18(pretrained=False)
+        self.backbone = nn.Sequential(
+            resnet.conv1,
+            resnet.bn1,
+            resnet.relu,
+            resnet.maxpool,
+            resnet.layer1,
+            resnet.layer2,
+            resnet.layer3,
+        )
+        self.bottleneck = nn.Conv2d(256, self.d_model, 1)
         self.image_positional_encoder = PositionalEncoding2D(self.d_model)
 
         # Decoder
@@ -94,14 +101,7 @@ class ResNetTransformer(nn.Module):
         # Resnet expects 3 channels but training images are in gray scale
         if x.shape[1] == 1:
             x = x.repeat(1, 3, 1, 1)
-        x = self.resnet.conv1(x)
-        x = self.resnet.bn1(x)
-        x = self.resnet.relu(x)
-        x = self.resnet.maxpool(x)
-        x = self.resnet.layer1(x)
-        x = self.resnet.layer2(x)
-        x = self.resnet.layer3(x)
-        x = self.resnet.layer4(x)  # (B, RESNET_DIM, H, W); H = _H // 32, W = _W // 32
+        x = self.backbone(x)  # (B, RESNET_DIM, H, W); H = _H // 32, W = _W // 32
         x = self.bottleneck(x)  # (B, E, H, W)
         x = self.image_positional_encoder(x)  # (B, E, H, W)
         x = x.flatten(start_dim=2)  # (B, E, H * W)

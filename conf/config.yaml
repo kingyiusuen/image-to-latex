@@ -17,6 +17,7 @@ callbacks:
     save_weights_only: true
     mode: "min"
     monitor: "val/loss"
+    filename: "{epoch}-{val/loss:.2f}"
   early_stopping:
     patience: 10
     mode: "min"
@@ -35,10 +36,10 @@ lit_model:
   lr: 0.001
   weight_decay: 0.0001
   # Scheduler
-  # mode: "min"
-  # monitor: "val/total_loss"
-  # factor: 0.5
-  # patience: 2
+  mode: "min"
+  monitor: "val/loss"
+  factor: 0.5
+  patience: 3
   # Model
   d_model: 256
   dim_feedforward: 512
