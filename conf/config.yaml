@@ -5,7 +5,7 @@ trainer:
   overfit_batches: 0.0
   check_val_every_n_epoch: 1
   fast_dev_run: false
-  max_epochs: 30
+  max_epochs: 10
   min_epochs: 1
   num_sanity_val_steps: 0
   auto_lr_find: false
@@ -36,13 +36,11 @@ lit_model:
   lr: 0.001
   weight_decay: 0.0001
   # Scheduler
-  mode: "min"
-  monitor: "val/loss"
-  factor: 0.5
-  patience: 3
+  milestones: [5]
+  gamma: 0.1
   # Model
-  d_model: 256
-  dim_feedforward: 512
+  d_model: 128
+  dim_feedforward: 256
   nhead: 2
   dropout: 0.5
   num_decoder_layers: 2

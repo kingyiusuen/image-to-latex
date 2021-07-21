@@ -1,13 +1,13 @@
 from pathlib import Path
+from typing import List
 
 import torch
 import torch.nn as nn
 from pytorch_lightning import LightningModule
-from torchmetrics import MetricCollection
 
 from ..data.utils import Tokenizer
 from ..models import ResNetTransformer
-from .metrics import EditDistance, ExactMatch
+from .metrics import EditDistance
 
 
 class LitResNetTransformer(LightningModule):
@@ -21,19 +21,15 @@ class LitResNetTransformer(LightningModule):
         max_output_len: int,
         lr: float = 0.001,
         weight_decay: float = 0.0001,
-        mode: str = "min",
-        monitor: str = "val/loss",
-        factor: float = 0.5,
-        patience: int = 2,
+        milestones: List[int] = [5],
+        gamma: float = 0.1,
     ):
         super().__init__()
         self.save_hyperparameters()
         self.lr = lr
         self.weight_decay = weight_decay
-        self.mode = mode
-        self.monitor = monitor
-        self.factor = factor
-        self.patience = patience
+        self.milestones = milestones
+        self.gamma = gamma
 
         vocab_file = Path(__file__).resolve().parents[1] / "data" / "vocab.json"
         self.tokenizer = Tokenizer.load(vocab_file)
@@ -50,14 +46,8 @@ class LitResNetTransformer(LightningModule):
             num_classes=len(self.tokenizer),
         )
         self.loss_fn = nn.CrossEntropyLoss()
-        metrics = MetricCollection(
-            {
-                "exact_match": ExactMatch(self.tokenizer.special_tokens),
-                "edit_distance": EditDistance(self.tokenizer.special_tokens),
-            }
-        )
-        self.val_metrics = metrics.clone(prefix="val/")
-        self.test_metrics = metrics.clone(prefix="test/")
+        self.val_edit_distance = EditDistance(self.tokenizer.special_tokens)
+        self.test_edit_distance = EditDistance(self.tokenizer.special_tokens)
 
     def training_step(self, batch, batch_idx):
         imgs, targets = batch
@@ -73,29 +63,16 @@ class LitResNetTransformer(LightningModule):
         self.log("val/loss", loss)
 
         preds = self.model.predict(imgs)
-        metrics_dict = self.val_metrics(preds, targets)
-        self.log_dict(metrics_dict)
+        edit_distance = self.val_edit_distance(preds, targets)
+        self.log("val/edit_distance", edit_distance)
 
     def test_step(self, batch, batch_idx):
         imgs, targets = batch
         preds = self.model.predict(imgs)
-        metrics_dict = self.test_metrics(preds, targets)
-        self.log_dict(metrics_dict)
+        edit_distance = self.test_edit_distance(preds, targets)
+        self.log("test/edit_distance", edit_distance)
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode=self.mode,
-            factor=self.factor,
-            patience=self.patience,
-        )
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": scheduler,
-                "monitor": self.monitor,
-                "interval": "epoch",
-                "frequency": 1,
-            },
-        }
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=self.milestones, gamma=self.gamma)
+        return [optimizer], [scheduler]
