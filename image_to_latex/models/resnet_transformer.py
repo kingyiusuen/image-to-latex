@@ -10,7 +10,7 @@ from ..data.utils import Tokenizer
 from .positional_encoding import PositionalEncoding1D, PositionalEncoding2D
 
 
-class ResnetTransformer(nn.Module):
+class ResNetTransformer(nn.Module):
     def __init__(
         self,
         tokenizer: Tokenizer,
@@ -23,7 +23,7 @@ class ResnetTransformer(nn.Module):
     ) -> None:
         super().__init__()
         self.d_model = d_model
-        self.max_output_len = max_output_len
+        self.max_output_len = max_output_len + 2
 
         self.sos_index = tokenizer.sos_index
         self.eos_index = tokenizer.eos_index

@@ -77,14 +77,20 @@ class BaseDataset(Dataset):
     def __getitem__(self, idx: int):
         """Returns a sample from the dataset at the given index."""
         image_filename, formula = self.image_filenames[idx], self.formulas[idx]
-        image = pil_loader(self.root_dir / image_filename)
+        image_filepath = self.root_dir / image_filename
+        if image_filepath.is_file():
+            image = pil_loader(image_filepath)
+        else:
+            # Returns a blank image if cannot find the image
+            image = Image.fromarray(np.full((64, 128), 255, dtype=np.uint8))
+            formula = []
         if self.transform is not None:
             image = self.transform(image)
         return image, formula
 
 
-def pil_loader(filename: Path) -> Image.Image:
-    with open(filename, "rb") as f:
+def pil_loader(fp: Path) -> Image.Image:
+    with open(fp, "rb") as f:
         img = Image.open(f)
         return img.convert("L")
 

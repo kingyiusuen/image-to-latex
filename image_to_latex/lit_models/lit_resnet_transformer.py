@@ -4,7 +4,7 @@ from pytorch_lightning import LightningModule
 from torchmetrics import MetricCollection
 
 from ..data.utils import Tokenizer
-from ..models import ResnetTransformer
+from ..models import ResNetTransformer
 from .metrics import EditDistance, ExactMatch
 
 
@@ -24,7 +24,7 @@ class LitResNetTransformer(LightningModule):
         super().__init__()
         self.lr = lr
         self.weight_decay = weight_decay
-        self.model = ResnetTransformer(
+        self.model = ResNetTransformer(
             tokenizer=tokenizer,
             d_model=d_model,
             dim_feedforward=dim_feedforward,
