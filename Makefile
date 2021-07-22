@@ -1,8 +1,3 @@
-# Makefile
-#
-# Reference:
-# https://github.com/GokuMohandas/MLOps/blob/main/Makefile
-
 .PHONY: help
 help:
 	@echo "Commands:"
@@ -35,10 +30,10 @@ install-test:
 
 # Set up virtual environment
 venv:
-	python3 -m venv ${name}
-	source ${name}/bin/activate && \
+	python3 -m venv venv
+	source venv/bin/activate && \
 	python -m pip install --upgrade pip setuptools wheel && \
-	make install-$(env)
+	make install-dev
 
 # Linting
 .PHONY: lint

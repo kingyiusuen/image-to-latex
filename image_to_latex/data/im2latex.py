@@ -2,8 +2,9 @@ import random
 from pathlib import Path
 from typing import Optional
 
+import albumentations as A
 import torch
-import torchvision.transforms as transforms
+from albumentations.pytorch.transforms import ToTensorV2
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
@@ -35,19 +36,15 @@ class Im2Latex(LightningDataModule):
         self.vocab_file = Path(__file__).resolve().parent / "vocab.json"
         self.all_formulas = get_all_formulas(self.data_dirname / "im2latex_formulas.norm.new.lst")
         self.transform = {
-            "fit": transforms.Compose(
+            "train": A.Compose(
                 [
-                    transforms.RandomAffine(
-                        degrees=(-2, 2),
-                        scale=(0.6, 1.0),
-                        shear=(-5, 5),
-                        fill=255,
-                    ),
-                    transforms.GaussianBlur(kernel_size=1),
-                    transforms.ToTensor(),
+                    A.Affine(scale=(0.6, 1.0), rotate=(-1, 1), cval=255, p=0.5),
+                    A.GaussNoise(var_limit=(10.0, 50.0), p=0.5),
+                    A.GaussianBlur(blur_limit=(1, 1), p=0.5),
+                    ToTensorV2(),
                 ]
             ),
-            "val/test": transforms.ToTensor(),
+            "val/test": ToTensorV2(),
         }
 
     @property
@@ -71,7 +68,7 @@ class Im2Latex(LightningDataModule):
                 self.processed_images_dirname,
                 image_filenames=train_image_names,
                 formulas=train_formulas,
-                transform=self.transform["fit"],
+                transform=self.transform["train"],
             )
 
             val_image_names, val_formulas = get_split(

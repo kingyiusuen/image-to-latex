@@ -33,14 +33,14 @@ lit_model:
   lr: 0.001
   weight_decay: 0.0001
   # Scheduler
-  milestones: [6]
+  milestones: [10]
   gamma: 0.1
   # Model
   d_model: 128
   dim_feedforward: 256
-  nhead: 2
-  dropout: 0.5
-  num_decoder_layers: 2
+  nhead: 4
+  dropout: 0.4
+  num_decoder_layers: 4
   max_output_len: 150
 
 logger:

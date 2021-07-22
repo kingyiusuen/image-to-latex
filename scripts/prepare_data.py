@@ -39,12 +39,12 @@ def main():
         PROCESSED_IMAGES_DIRNAME.mkdir(parents=True, exist_ok=True)
         print("Cropping images...")
         for image_filename in RAW_IMAGES_DIRNAME.glob("*.png"):
-            cropped_image = utils.crop(image_filename, PROCESSED_IMAGES_DIRNAME)
+            cropped_image = utils.crop(image_filename, padding=8)
             if not cropped_image:
                 continue
             cropped_image.save(PROCESSED_IMAGES_DIRNAME / image_filename.name)
 
-    # Clean data
+    # Clean the ground truth file
     cleaned_file = "im2latex_formulas.norm.new.lst"
     if not Path(cleaned_file).is_file():
         print("Cleaning data...")

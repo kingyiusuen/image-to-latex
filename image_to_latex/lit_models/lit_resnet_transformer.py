@@ -75,11 +75,12 @@ class LitResNetTransformer(LightningModule):
 
     def test_epoch_end(self, test_outputs):
         with open("test_predictions.txt", "w") as f:
-            for pred in test_outputs[0]:
-                decoded = self.tokenizer.decode(pred.tolist())
-                decoded.append("\n")
-                decoded_str = "".join(decoded)
-                f.write(decoded_str)
+            for preds in test_outputs:
+                for pred in preds:
+                    decoded = self.tokenizer.decode(pred.tolist())
+                    decoded.append("\n")
+                    decoded_str = " ".join(decoded)
+                    f.write(decoded_str)
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)

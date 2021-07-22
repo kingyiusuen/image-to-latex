@@ -5,22 +5,22 @@
 ![tests status](https://github.com/kingyiusuen/image-to-latex/actions/workflows/tests.yml/badge.svg)
 [![License](https://img.shields.io/github/license/kingyiusuen/image-to-latex)](https://github.com/kingyiusuen/image-to-latex/blob/main/LICENSE)
 
-<img src="img/streamlit_app.png" alt="Image to Latex streamlit app" width="512">
+## Introduction
 
 An application that maps an image of an equation to the corresponding latex code.
 
-The model I implemented uses an encoder-decoder architecture (Resnet-18 as encoder and a Transformer as decoder) with cross-entropy loss [(Singh & Karayev, 2021)](https://arxiv.org/abs/2103.06450).
+<img src="img/streamlit_app.png" alt="Image to Latex streamlit app" width="512">
 
-The model was trained with the [im2latex-100K](http://lstm.seas.harvard.edu/latex/data/) dataset which has already been pre-processed by Deng et al. (2016) from Harvard. (The pre-processing turns out to be a huge limitation. See [below](#limitations).)
 
-My model shows comparable results with the model developed by [Deng et al. (2016)](https://arxiv.org/pdf/1609.04938v1.pdf) on the test set, despite having a much fewer number of parameters and requiring a much shorter training time:
+The problem of image-to-markup generation has been attempted by [Deng et al. (2016)](https://arxiv.org/pdf/1609.04938v1.pdf). They provide the raw and preprocessed versions of [im2latex-100K](http://lstm.seas.harvard.edu/latex/data/), a dataset consisting of about 100K latex math equation images. Using their dataset, I trained a model that uses ResNet-18 as encoder (up to layer3) and a Transformer as decoder with cross-entropy loss.
 
-| Model              | # Params | Training time | BLEU     | Edit Distance |
-|--------------------|----------|---------------|----------|---------------|
-| Deng et al. (2016) | 9.48m    | 20 hours      | 87.73    | 87.60         |
-| Mine               | 3.74m    | 30 mins       | 82.60    | 82.62         |
+Initially, I used the preprocessed dataset to train my model, but the preprocessing turned out to be a huge limitation. Although the model can achieve a reasonable performance on the test set, it performs poorly if the image quality, padding, or font size is different from the images in the dataset. This phenomenon has also been observed by others who have attempted the same problem using the same dataset (e.g., [this project](https://wandb.ai/site/articles/image-to-latex), [this issue](https://github.com/harvardnlp/im2markup/issues/12) and [this issue](https://github.com/harvardnlp/im2markup/issues/21)). This is most likely due to the rigid preprocessing for the dataset (e.g. heavy downsampling).
 
-Deng's model was trained on a 12GB NVidia Titan X GPU, while I trained my model on a Tesla V100 SMX2. A comparison of the two GPUs can be found [here](https://www.gpuzoo.com/Compare/NVIDIA_Tesla_V100_SMX2__vs__NVIDIA_Titan_V/). They also used  beam search with a beam width of 5 during evaluation, while I only used greedy search. The chart for training/validation loss, the hyperparameters and the model checkpoint can be found in [Weights & Biases](https://wandb.ai/kingyiusuen/image-to-latex/runs/2pgs4rdi/).
+To this end, I used the raw dataset and included image augmentation (e.g. random scaling, small rotation) in my data processing pipeline to increase the diversity of the samples. Moreover, unlike Deng et al. (2016), I did not group images by size. Rather, I sampled them uniformly and padded them to the largest image size in the batch, to increase the generalizability of the model.
+
+Additional problems that I found in the dataset:
+- Some latex code produces visually identical outputs (e.g. ``\left(`` and ``\right)`` look the same as ``(`` and ``)``), so I normalized them.
+- Some latex code is used to add space (e.g. ``\vspace{2px}`` and ``\hspace{0.3mm}``). However, the length of the space is impossible to judge. Also, I don't want the model generates code on blank images, so I removed them.
 
 ## Setup
 
@@ -34,7 +34,16 @@ cd image-to-latex
 Then, create a virtual environment named `venv` and install required packages:
 
 ```
-make venv name="venv" env="dev"
+make venv
+make install-dev
+```
+
+## Data Preprocessing
+
+Run the following command to download the im2latex-100k dataset and do all the preprocessing (it may take over an hour).
+
+```
+python scripts/prepare_data.py
 ```
 
 ## Model Training and Experiment Tracking
@@ -44,42 +53,20 @@ make venv name="venv" env="dev"
 An example command to start a training session:
 
 ```
-image-to-latex train \
-    --max-epochs 30 \
-    --lr 0.001 \
-    --patience 10 \
-    --save-best-model \
-    --use-wandb \
-    --resnet-layers 3 \
-    --tf-dim 128 \
-    --tf-fc-dim 256 \
-    --tf-layers 4 \
-    --tf-dropout 0.2
+python scripts/run_experiment.py trainer.gpus=1 data.batch_size=32
 ```
 
-The im2latex-100k dataset will be downloaded automatically. Run the following command to learn the usage and see more available options.
-
-```
-image-to-latex train --help
-```
-
-There are model-dependent options that are not shown in the help message. To learn more about this, check out what arguments are being parsed from the input parameter `config` in `resnet_transformer.py` under `image_to_latex/models`. Note that the words in the arguments should be separated by dash instead of underscore when you put them in the command line.
+Configurations can be modified in `conf/config.yaml` or in command line. See [Hydra's documentation](https://hydra.cc/docs/intro) to learn more.
 
 ### Experiment Tracking using Weights & Biases
 
-To track the experiment using [Weights & Biases](https://wandb.ai), add ``--use-wandb`` to the train command. You will be prompted to create an account or log in to an existing account before the training starts. The training progress (e.g., training and validation losses) and results will be logged under a project named `image-to-latex` in the Weights & Biases dashboard.
-
-After the training is finished, you can use the following command to download a json file that contains the configurations of the model and the trainer (to reproduce the results), a json file that maps tokens to integers, and a model checkpoint (if `--save-best-model` flag is used):
+The best model checkpoint will be uploaded to Weights & Biases (W&B) automatically (you will be asked to register or login to W&B before the training starts). Here is an example command to download a trained model checkpoint from W&B:
 
 ```
-image-to-latex download-artifacts [RUN_PATH]
+python scripts/download_checkpoint.py RUN_PATH
 ```
 
-The run path should be in the format of `<entity>/<project>/<run_id>`. To find the run path for a particular experiment run, go to the Overview tab in the dashboard. For example, the run id for [this experiemnt]((https://wandb.ai/kingyiusuen/image-to-latex/runs/2pgs4rdi/)) is `kingyiusuen/image-to-latex/2pgs4rdi`.
-
-### Training in Google Colab
-
-If you want to train the model in Google Colab, you can follow the template in [notebooks/colab_training.ipynb](https://colab.research.google.com/github/kingyiusuen/image-to-latex/blob/main/notebooks/colab_training.ipynb). Note that there is limited memory in Colab, so you may want to adjust the hyperparameters and train a smaller model. See the model summary at the beginning of the training to find out the number of parameters in each layer. You can also consider upgrading to Colab Pro to get more memory.
+Replace RUN_PATH with the path of your run. The run path should be in the format of `<entity>/<project>/<run_id>`. To find the run path for a particular experiment run, go to the Overview tab in the dashboard.
 
 ## Testing and Continuous Integration
 
@@ -117,7 +104,7 @@ make test-non-training
 
 ## Deployment
 
-A RESTful API is created to make predictions using a trained Resnet-Transformer model. Use the following command to get the server up and running:
+An API is created to make predictions using the trained model. Use the following command to get the server up and running:
 
 ```
 make api
@@ -131,9 +118,9 @@ To run the Streamlit app, create a new terminal window and use the following com
 make streamlit
 ```
 
-The app should be opened in your browser automatically. You can also open it by visiting [http://localhost:8501](http://localhost:8501). For the app to work, you need to download the artifacts of an experiment run first (see [above](#Experiment-Tracking-using-Weights-&-Biases)).
+The app should be opened in your browser automatically. You can also open it by visiting [http://localhost:8501](http://localhost:8501). For the app to work, you need to download the artifacts of an experiment run (see [above](#Experiment-Tracking-using-Weights-&-Biases)) and have the API up and running.
 
-To create a Docker image:
+To create a Docker image for the API:
 
 ```
 make docker
@@ -141,14 +128,12 @@ make docker
 
 ## Limitations
 
-Although the trained model can achieve a reasonable performance on the test dataset, it performs poorly if the image quality, padding, or font size is different from the images in the dataset. This phenomenon has also been observed by others who have attempted the same problem using the same dataset (e.g., [this project](https://wandb.ai/site/articles/image-to-latex), [this issue](https://github.com/harvardnlp/im2markup/issues/12) and [this issue](https://github.com/harvardnlp/im2markup/issues/21)). To address this, future works should include image augmentation in their pre-processing pipeline to increase the diversity of the samples.
-
-For the sake of time, I did not use beam search or perform any hyperparameter tuning. I only used the first three layers of Resnet, because I ran out of memory on Google Colab when I tried to use the full model.
+For the sake of time, I did not use beam search or perform much hyperparameter tuning. Also, I only used the first three layers of ResNet-18, because I have limited computational resources. Future studies can try a larger model.
 
 ## Acknowledgement
 
 - This project is inspired by the project ideas section in the [final project guidelines](https://docs.google.com/document/d/1pXPJ79cQeyDk3WdlYipA6YbbcoUhIVURqan_INdjjG4/edit) of the course [Full Stack Deep Learning](https://fullstackdeeplearning.com/) at UC Berkely.
 
-- [MLOps - Made with ML](https://madewithml.com/courses/mlops/) for introducing Makefile, pre-commit, Github Actions and Python packaging to me.
+- [MLOps - Made with ML](https://madewithml.com/courses/mlops/) for introducing Makefile, pre-commit, Github Actions and Python packaging.
 
 - [harvardnlp/im2markup](https://github.com/harvardnlp/im2markup) for pre-processing the im2latex-100k dataset.

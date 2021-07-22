@@ -15,8 +15,5 @@ COPY image_to_latex image_to_latex
 COPY api api
 COPY artifacts artifacts
 
-# Export ports
-EXPOSE 8000
-
 # Start app
-ENTRYPOINT ["python", "api/app.py"]
+ENTRYPOINT ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]

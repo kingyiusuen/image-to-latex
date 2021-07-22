@@ -26,22 +26,16 @@ class TqdmUpTo(tqdm):
         self.update(blocks * bsize - self.n)
 
 
-def download_url(url: str, filename: Union[Path, str]) -> None:
+def download_url(url: str, filename: str) -> None:
     """Download a file from url to filename, with a progress bar."""
     with TqdmUpTo(unit="B", unit_scale=True, unit_divisor=1024, miniters=1) as t:
-        if isinstance(filename, Path):
-            t.set_description(filename.name)
-        else:
-            t.set_description(filename)
+        t.set_description(filename)
         urlretrieve(url, filename, reporthook=t.update_to, data=None)
 
 
-def extract_tar_file(filename: Union[Path, str]) -> None:
+def extract_tar_file(filename: str) -> None:
     """Extract a .tar or .tar.gz file."""
-    if isinstance(filename, Path):
-        print(f"Extracting {filename.name}...")
-    else:
-        print(f"Extracting {filename}...")
+    print(f"Extracting {filename}...")
     with tarfile.open(filename, "r") as f:
         f.extractall()
 
@@ -79,20 +73,20 @@ class BaseDataset(Dataset):
         image_filename, formula = self.image_filenames[idx], self.formulas[idx]
         image_filepath = self.root_dir / image_filename
         if image_filepath.is_file():
-            image = pil_loader(image_filepath)
+            image = pil_loader(image_filepath, mode="L")
         else:
             # Returns a blank image if cannot find the image
             image = Image.fromarray(np.full((64, 128), 255, dtype=np.uint8))
             formula = []
         if self.transform is not None:
-            image = self.transform(image)
+            image = self.transform(image=np.array(image))["image"]
         return image, formula
 
 
-def pil_loader(fp: Path) -> Image.Image:
+def pil_loader(fp: Path, mode: str) -> Image.Image:
     with open(fp, "rb") as f:
         img = Image.open(f)
-        return img.convert("L")
+        return img.convert(mode)
 
 
 class Tokenizer:
@@ -236,19 +230,35 @@ def first_and_last_nonzeros(arr):
 
 
 def crop(filename: Path, padding: int = 8) -> Optional[Image.Image]:
-    image = pil_loader(filename)
-    arr = 255 - np.array(image)
+    image = pil_loader(filename, mode="RGBA")
+
+    # Replace the transparency layer with a white background
+    new_image = Image.new("RGBA", image.size, "WHITE")
+    new_image.paste(image, (0, 0), image)
+    new_image = new_image.convert("L")
+
+    # Invert the color to have a black background and white text
+    arr = 255 - np.array(new_image)
+
+    # Area that has text should have nonzero pixel values
     row_sums = np.sum(arr, axis=1)
     col_sums = np.sum(arr, axis=0)
     y_start, y_end = first_and_last_nonzeros(row_sums)
     x_start, x_end = first_and_last_nonzeros(col_sums)
+
+    # Some images have no text
     if y_start >= y_end or x_start >= x_end:
         print(f"{filename.name} is ignored because it does not contain any text")
         return None
+
+    # Cropping
     cropped = arr[y_start : y_end + 1, x_start : x_end + 1]
     H, W = cropped.shape
+
+    # Add paddings
     new_arr = np.zeros((H + padding * 2, W + padding * 2))
     new_arr[padding : H + padding, padding : W + padding] = cropped
+
+    # Invert the color back to have a white background and black text
     new_arr = 255 - new_arr
-    new_image = Image.fromarray(new_arr).convert("RGB")
-    return new_image
+    return Image.fromarray(new_arr).convert("L")

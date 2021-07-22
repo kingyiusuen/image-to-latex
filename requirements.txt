@@ -6,3 +6,5 @@ fastapi==0.66.0
 uvicorn==0.14.0
 streamlit==0.84.0
 hydra-core==1.1.0
+python-multipart==1.16.0
+albumentations==1.0.3

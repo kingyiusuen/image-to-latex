@@ -1,9 +1,10 @@
 from http import HTTPStatus
 
+import torchvision.transforms as transforms
 from fastapi import FastAPI, File, UploadFile
 from PIL import Image
 
-from image_to_latex.image_to_latex_converter import ImageToLatexConverter
+from image_to_latex.lit_models import LitResNetTransformer
 
 
 app = FastAPI(
@@ -14,8 +15,11 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def load_model():
-    global model
-    model = ImageToLatexConverter()
+    global lit_model
+    global transform
+    lit_model = LitResNetTransformer.load_from_checkpoint("artifacts/model.pt")
+    lit_model.freeze()
+    transform = transforms.ToTensor()
 
 
 @app.get("/", tags=["General"])
@@ -29,13 +33,17 @@ def read_root():
     return response
 
 
-@app.post("/predict/{beam_width}", tags=["Prediction"])
-def get_image(beam_width: int, file: UploadFile = File(...)):
-    image = Image.open(file.file).convert(mode="L")
-    pred = model.predict(image, beam_width=beam_width)  # type: ignore
+@app.post("/predict/", tags=["Prediction"])
+def predict(file: UploadFile = File(...)):
+    image = Image.open(file.file).convert("L")
+    image_tensor = transform(image)  # type: ignore
+    image_tensor.unsqueeze_(0)
+    pred = lit_model.model.predict(image_tensor)[0]  # type: ignore
+    decoded = lit_model.tokenizer.decode(pred.tolist())  # type: ignore
+    decoded_str = " ".join(decoded)
     response = {
         "message": HTTPStatus.OK.phrase,
         "status-code": HTTPStatus.OK,
-        "data": {"pred": pred},
+        "data": {"pred": decoded_str},
     }
     return response
