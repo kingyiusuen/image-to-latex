@@ -120,7 +120,7 @@ class Tokenizer:
             self.eos_index = self._add_token(self.eos_token)
             self.unk_index = self._add_token(self.unk_token)
 
-        self.special_tokens = {self.pad_index, self.sos_index, self.eos_index, self.unk_index}
+        self.ignore_indices = {self.pad_index, self.sos_index, self.eos_index, self.unk_index}
 
     def _add_token(self, token: str) -> int:
         """Add one token to the vocabulary.
@@ -171,11 +171,13 @@ class Tokenizer:
         indices.append(self.eos_index)
         return indices
 
-    def decode(self, indices: List[int]) -> List[str]:
+    def decode(self, indices: List[int], inference: bool = True) -> List[str]:
         tokens = []
         for index in indices:
             if index not in self.index_to_token:
                 raise RuntimeError(f"Found an unknown index {index}")
+            if inference and index in self.ignore_indices:
+                continue
             token = self.index_to_token[index]
             tokens.append(token)
         return tokens

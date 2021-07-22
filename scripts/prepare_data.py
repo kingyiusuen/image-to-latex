@@ -1,4 +1,5 @@
 import os
+import subprocess
 from pathlib import Path
 
 import image_to_latex.data.utils as utils
@@ -43,11 +44,18 @@ def main():
                 continue
             cropped_image.save(PROCESSED_IMAGES_DIRNAME / image_filename.name)
 
+    # Clean data
+    cleaned_file = "im2latex_formulas.norm.new.lst"
+    if not Path(cleaned_file).is_file():
+        print("Cleaning data...")
+        script = Path(__file__).resolve().parent / "find_and_replace.sh"
+        subprocess.call(["sh", f"{str(script)}", "im2latex_formulas.norm.lst", cleaned_file])
+
     # Build vocabulary
     if not VOCAB_FILE.is_file():
         print("Building vocabulary...")
-        all_formulas = utils.get_all_formulas(DATA_DIRNAME / "im2latex_formulas.norm.lst")
-        _, train_formulas = utils.get_split(all_formulas, DATA_DIRNAME / "im2latex_train_filter.lst")
+        all_formulas = utils.get_all_formulas(cleaned_file)
+        _, train_formulas = utils.get_split(all_formulas, "im2latex_train_filter.lst")
         tokenizer = utils.Tokenizer()
         tokenizer.train(train_formulas)
         tokenizer.save(VOCAB_FILE)

@@ -19,12 +19,9 @@ callbacks:
     monitor: "val/loss"
     filename: "{epoch}-{val/loss:.2f}"
   early_stopping:
-    patience: 10
+    patience: 3
     mode: "min"
     monitor: "val/loss"
-  learning_rate_monitor:
-    logging_interval: "epoch"
-    log_momentum: false
 
 data:
   batch_size: 8
@@ -36,7 +33,7 @@ lit_model:
   lr: 0.001
   weight_decay: 0.0001
   # Scheduler
-  milestones: [5]
+  milestones: [6]
   gamma: 0.1
   # Model
   d_model: 128
