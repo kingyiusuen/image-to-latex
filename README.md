@@ -21,12 +21,12 @@ Additional problems that I found in the dataset:
 - Some latex code produces visually identical outputs (e.g. `\left(` and `\right)` look the same as `(` and `)`), so I normalized them.
 - Some latex code is used to add space (e.g. `\vspace{2px}` and `\hspace{0.3mm}`). However, the length of the space is diffcult to judge. Also, I don't want the model generates code on blank images, so I removed them.
 
-The [best run](https://wandb.ai/kingyiusuen/image-to-latex/runs/1w1abmg1/) has a character error rate (CER) of 0.17 in test set. It seems like The model seems to errorenously add unnecessary horizontal spacing, e.g., `\;`, `\,` and `\qquad`. (I only removed `\vspace` and `\hspace` during preprocessing. I did not know that LaTeX has so many horizontal spacing commands.)
+The [best run](https://wandb.ai/kingyiusuen/image-to-latex/runs/1w1abmg1/) has a character error rate (CER) of 0.17 in test set. Most errors seem to come from unnecessary horizontal spacing, e.g., `\;`, `\,` and `\qquad`. (I only removed `\vspace` and `\hspace` during preprocessing. I did not know that LaTeX has so many horizontal spacing commands.)
 
 Possible improvements include:
 
-- Do a better job cleaning the data and normalizing the formulas
-- Train the model for more epochs (For the sake of time, I only trained the model for 15 epochs, but the validation loss is still going down)
+- Do a better job cleaning the data (e.g., removing spacing commands)
+- Train the model for more epochs (for the sake of time, I only trained the model for 15 epochs, but the validation loss is still going down)
 - Use beam search (I only implemented greedy search)
 - Use a larger model (e.g., use ResNet-34 instead of ResNet-18)
 - Do some hyperparameter tuning
