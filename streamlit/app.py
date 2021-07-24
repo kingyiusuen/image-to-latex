@@ -18,7 +18,7 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
-    st.image(image, use_column_width="auto")
+    st.image(image)
 
 
 if st.button("Convert"):
@@ -26,7 +26,6 @@ if st.button("Convert"):
         files = {"file": uploaded_file.getvalue()}
         with st.spinner("Wait for it..."):
             response = requests.post("http://0.0.0.0:8000/predict/", files=files)
-        st.header("Output")
         latex_code = response.json()["data"]["pred"]
         st.code(latex_code)
         st.markdown(f"${latex_code}$")

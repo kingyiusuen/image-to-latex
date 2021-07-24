@@ -1,6 +1,7 @@
 from http import HTTPStatus
 
-import torchvision.transforms as transforms
+import numpy as np
+from albumentations.pytorch.transforms import ToTensorV2
 from fastapi import FastAPI, File, UploadFile
 from PIL import Image
 
@@ -19,7 +20,7 @@ async def load_model():
     global transform
     lit_model = LitResNetTransformer.load_from_checkpoint("artifacts/model.pt")
     lit_model.freeze()
-    transform = transforms.ToTensor()
+    transform = ToTensorV2()
 
 
 @app.get("/", tags=["General"])
@@ -36,9 +37,8 @@ def read_root():
 @app.post("/predict/", tags=["Prediction"])
 def predict(file: UploadFile = File(...)):
     image = Image.open(file.file).convert("L")
-    image_tensor = transform(image)  # type: ignore
-    image_tensor.unsqueeze_(0)
-    pred = lit_model.model.predict(image_tensor)[0]  # type: ignore
+    image_tensor = transform(image=np.array(image))["image"]  # type: ignore
+    pred = lit_model.model.predict(image_tensor.unsqueeze(0).float())[0]  # type: ignore
     decoded = lit_model.tokenizer.decode(pred.tolist())  # type: ignore
     decoded_str = " ".join(decoded)
     response = {

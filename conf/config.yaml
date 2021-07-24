@@ -3,9 +3,9 @@ seed: 1234
 trainer:
   gpus: 0
   overfit_batches: 0.0
-  check_val_every_n_epoch: 1
+  check_val_every_n_epoch: 2
   fast_dev_run: false
-  max_epochs: 10
+  max_epochs: 15
   min_epochs: 1
   num_sanity_val_steps: 0
   auto_lr_find: false
@@ -17,11 +17,12 @@ callbacks:
     save_weights_only: true
     mode: "min"
     monitor: "val/loss"
-    filename: "{epoch}-{val/loss:.2f}"
+    filename: "{epoch}-{val/loss:.2f}-{val/cer:.2f}"
   early_stopping:
     patience: 3
     mode: "min"
     monitor: "val/loss"
+    min_delta: 0.001
 
 data:
   batch_size: 8
@@ -34,13 +35,13 @@ lit_model:
   weight_decay: 0.0001
   # Scheduler
   milestones: [10]
-  gamma: 0.1
+  gamma: 0.5
   # Model
   d_model: 128
   dim_feedforward: 256
   nhead: 4
-  dropout: 0.4
-  num_decoder_layers: 4
+  dropout: 0.3
+  num_decoder_layers: 3
   max_output_len: 150
 
 logger:

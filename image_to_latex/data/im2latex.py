@@ -34,7 +34,10 @@ class Im2Latex(LightningDataModule):
 
         self.data_dirname = Path(__file__).resolve().parents[2] / "data"
         self.vocab_file = Path(__file__).resolve().parent / "vocab.json"
-        self.all_formulas = get_all_formulas(self.data_dirname / "im2latex_formulas.norm.new.lst")
+        formula_file = self.data_dirname / "im2latex_formulas.norm.new.lst"
+        if not formula_file.is_file():
+            raise FileNotFoundError("Did you run scripts/prepare_data.py?")
+        self.all_formulas = get_all_formulas(formula_file)
         self.transform = {
             "train": A.Compose(
                 [

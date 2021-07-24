@@ -13,10 +13,6 @@ BASE_DIR = Path(__file__).parent
 with open(Path(BASE_DIR, "requirements.txt")) as file:
     required_packages = [ln.strip() for ln in file.readlines()]
 
-test_packages = [
-    "pytest==6.1.1",
-    "pytest-cov==2.12.0",
-]
 
 dev_packages = [
     "black==21.5b1",
@@ -25,6 +21,7 @@ dev_packages = [
     "mypy==0.812",
     "pre-commit==2.13.0",
 ]
+
 
 setup(
     name="image-to-latex",
@@ -51,8 +48,7 @@ setup(
     python_requires=">=3.6",
     install_requires=[required_packages],
     extras_require={
-        "test": test_packages,
-        "dev": test_packages + dev_packages,
+        "dev": dev_packages,
     },
     entry_points={
         "console_scripts": [

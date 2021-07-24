@@ -3,10 +3,7 @@ help:
 	@echo "Commands:"
 	@echo "install            : installs requirements."
 	@echo "install-dev        : installs development requirements."
-	@echo "install-test       : installs test requirements."
 	@echo "venv               : sets up virtual environment for development."
-	@echo "test               : runs all tests."
-	@echo "test-non-training  : runs non-training tests."
 	@echo "api                : launches FastAPI app."
 	@echo "docker             : builds and runs a docker image."
 	@echo "streamlit          : runs streamlit app."
@@ -24,10 +21,6 @@ install-dev:
 	pre-commit install
 	pre-commit autoupdate
 
-.PHONY: install-test
-install-test:
-	python -m pip install -e ".[test]" --no-cache-dir
-
 # Set up virtual environment
 venv:
 	python3 -m venv venv
@@ -42,15 +35,6 @@ lint:
 	black .
 	flake8 .
 	mypy .
-
-# Tests
-.PHONY: test
-test:
-	pytest --cov image_to_latex --cov app --cov-report html
-
-.PHONY: test-non-training
-test-non-training:
-	pytest -m "not training"
 
 # API
 .PHONY: api

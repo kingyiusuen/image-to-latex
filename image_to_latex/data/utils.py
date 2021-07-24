@@ -170,6 +170,8 @@ class Tokenizer:
         for index in indices:
             if index not in self.index_to_token:
                 raise RuntimeError(f"Found an unknown index {index}")
+            if index == self.eos_index:
+                break
             if inference and index in self.ignore_indices:
                 continue
             token = self.index_to_token[index]
