@@ -44,7 +44,7 @@ api:
 # Docker
 .PHONY: docker
 docker:
-	docker build -t image-to-latex:latest -f Dockerfile .
+	docker build -t image-to-latex:latest -f api/Dockerfile .
 	docker run -p 8000:8000 --name image-to-latex image-to-latex:latest
 
 # Streamlit

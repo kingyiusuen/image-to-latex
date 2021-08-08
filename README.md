@@ -6,21 +6,25 @@
 
 An application that maps an image of a LaTeX math equation to LaTeX code.
 
-<center><img src="figures/screenshot.gif" alt="Image to Latex streamlit app" width="512"></center>
+<img src="figures/screenshot.gif" alt="Image to Latex streamlit app" width="512">
 
 ## Introduction
 
-The problem of image-to-markup generation has been attempted by [Deng et al. (2016)](https://arxiv.org/pdf/1609.04938v1.pdf). They provide the raw and preprocessed versions of [im2latex-100K](http://lstm.seas.harvard.edu/latex/data/), a dataset consisting of about 100K LaTeX math equation images. Using their dataset, I trained a model that uses ResNet-18 as encoder (up to layer3) and a Transformer as decoder with cross-entropy loss.
+The problem of image-to-markup generation has been attempted by [Deng et al. (2016)](https://arxiv.org/pdf/1609.04938v1.pdf). They provide the raw and preprocessed versions of [im2latex-100K](http://lstm.seas.harvard.edu/latex/data/), a dataset consisting of about 100K LaTeX math equation images. Using their dataset, I trained a model that uses ResNet-18 as encoder with 2D positional encoding and a Transformer as decoder with cross-entropy loss. (Similar to the one described in [Singh et al. (2021)](https://arxiv.org/pdf/2103.06450.pdf), except that I used ResNet only up to block 3 to reduce computational costs, and I excluded the line number encoding as it doesn't apply to this problem.)
 
-Initially, I used the preprocessed dataset to train my model, but the preprocessing turned out to be a huge limitation. Although the model can achieve a reasonable performance on the test set, it performs poorly if the image quality, padding, or font size is different from the images in the dataset. This phenomenon has also been observed by others who have attempted the same problem using the same dataset (e.g., [this project](https://wandb.ai/site/articles/image-to-latex), [this issue](https://github.com/harvardnlp/im2markup/issues/12) and [this issue](https://github.com/harvardnlp/im2markup/issues/21)). This is most likely due to the rigid preprocessing for the dataset (e.g. heavy downsampling).
+<img src="figures/model_architecture.png" alt="Model Architecture" width="384">
 
-To this end, I used the raw dataset and included image augmentation (e.g. random scaling, small rotation) in my data processing pipeline to increase the diversity of the samples. Moreover, unlike Deng et al. (2016), I did not group images by size. Rather, I sampled them uniformly and padded them to the size of the largest image in the batch, to increase the generalizability of the model.
+<small>Model architecture. Taken from Singh et al. (2021).</small>
 
-Additional problems that I found in the dataset:
+Initially, I used the preprocessed dataset to train my model, because the preprocessed images are downsampled to half of their original sizes for efficiency, and are grouped and padded into similar sizes to facilitate batching. However, this rigid preprocessing turned out to be a huge limitation. Although the model could achieve a reasonable performance on the test set (which was preprocessed the same way as the training set), it did not generalize well to images outside the dataset, most likely because the image quality, padding, and font size are so different from the images in the dataset. This phenomenon has also been observed by others who have attempted the same problem using the same dataset (e.g., [this project](https://wandb.ai/site/articles/image-to-latex), [this issue](https://github.com/harvardnlp/im2markup/issues/12) and [this issue](https://github.com/harvardnlp/im2markup/issues/21)).
+
+To this end, I used the raw dataset and included image augmentation (e.g. random scaling, gaussian noise) in my data processing pipeline to increase the diversity of the samples. Moreover, unlike Deng et al. (2016), I did not group images by size. Rather, I sampled them uniformly and padded them to the size of the largest image in the batch, so that the model must learn how to adapt to different padding sizes.
+
+Additional problems that I faced in the dataset:
 - Some latex code produces visually identical outputs (e.g. `\left(` and `\right)` look the same as `(` and `)`), so I normalized them.
-- Some latex code is used to add space (e.g. `\vspace{2px}` and `\hspace{0.3mm}`). However, the length of the space is diffcult to judge. Also, I don't want the model generates code on blank images, so I removed them.
+- Some latex code is used to add space (e.g. `\vspace{2px}` and `\hspace{0.3mm}`). However, the length of the space is diffcult to judge even for humans. Also, there are many ways to express the same spacing (e.g. 1 cm = 10 mm). Finally, I don't want the model to generate code on blank images, so I just removed them.
 
-The [best run](https://wandb.ai/kingyiusuen/image-to-latex/runs/1w1abmg1/) has a character error rate (CER) of 0.17 in test set. Most errors seem to come from unnecessary horizontal spacing, e.g., `\;`, `\,` and `\qquad`. (I only removed `\vspace` and `\hspace` during preprocessing. I did not know that LaTeX has so many horizontal spacing commands.)
+The [best run](https://wandb.ai/kingyiusuen/image-to-latex/runs/1w1abmg1/) has a character error rate (CER) of 0.17 in test set. Most errors seem to come from unnecessary horizontal spacing, e.g., `\;`, `\,` and `\qquad`. (I wasn't aware of these horizontal spacing commands. I only removed `\vspace` and `\hspace` during preprocessing.) Also, the model occassionally makes the text bold when it shouldn't have.
 
 Possible improvements include:
 
@@ -136,8 +140,8 @@ make docker
 
 ## Acknowledgement
 
-- This project is inspired by the project ideas section in the [final project guidelines](https://docs.google.com/document/d/1pXPJ79cQeyDk3WdlYipA6YbbcoUhIVURqan_INdjjG4/edit) of the course [Full Stack Deep Learning](https://fullstackdeeplearning.com/) at UC Berkely.
+- This project is inspired by the project ideas section in the [final project guidelines](https://docs.google.com/document/d/1pXPJ79cQeyDk3WdlYipA6YbbcoUhIVURqan_INdjjG4/edit) of the course [Full Stack Deep Learning](https://fullstackdeeplearning.com/) at UC Berkely. Some of the code is adopted from its [labs](https://github.com/full-stack-deep-learning/fsdl-text-recognizer-2021-labs/tree/main).
 
 - [MLOps - Made with ML](https://madewithml.com/courses/mlops/) for introducing Makefile, pre-commit, Github Actions and Python packaging.
 
-- [harvardnlp/im2markup](https://github.com/harvardnlp/im2markup) for pre-processing the im2latex-100k dataset.
+- [harvardnlp/im2markup](https://github.com/harvardnlp/im2markup) for the im2latex-100k dataset.
