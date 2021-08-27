@@ -22,6 +22,7 @@ install-dev:
 	pre-commit autoupdate
 
 # Set up virtual environment
+.PHONY: venv
 venv:
 	python3 -m venv venv
 	source venv/bin/activate && \

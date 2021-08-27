@@ -50,9 +50,4 @@ setup(
     extras_require={
         "dev": dev_packages,
     },
-    entry_points={
-        "console_scripts": [
-            "image-to-latex = cli.app:app",
-        ],
-    },
 )
