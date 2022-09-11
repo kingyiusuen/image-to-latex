@@ -47,6 +47,7 @@ setup(
     ],
     python_requires=">=3.6",
     install_requires=[required_packages],
+    py_modules=[],
     extras_require={
         "dev": dev_packages,
     },
