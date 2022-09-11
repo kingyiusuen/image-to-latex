@@ -47,7 +47,7 @@ setup(
     ],
     python_requires=">=3.6",
     install_requires=[required_packages],
-    py_modules=[],
+    py_modules=["image_to_latex","api"],
     extras_require={
         "dev": dev_packages,
     },
